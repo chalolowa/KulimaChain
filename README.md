@@ -1,84 +1,65 @@
-# Turborepo starter
+# KulimaChain
 
-This Turborepo starter is maintained by the Turborepo core team.
+KulimaChain is a decentralized insurance fund and fractional farmland ownership platform for Africa and **is built using Chainlink’s backend infrastructure and a Next.js frontend**. Here’s a breakdown of how this dapp addresses key challenges and enables implementation:
 
-## Using this example
+---
 
-Run the following command:
+### **Technical Architecture Overview**
+#### **Backend (Chainlink)**  
+Chainlink’s decentralized oracle network and modular services provide critical infrastructure for reliability and real-world data integration:  
+1. **Parametric Insurance Triggers**  
+   - Use **Chainlink Oracles** to fetch weather data (e.g., rainfall, temperature) from APIs like NOAA, Tomorrow.io, or IoT sensors. This enables automated payouts for crop insurance (e.g., drought triggers).  
 
-```sh
-npx create-turbo@latest
-```
+2. **Land Registry Verification**  
+   - Chainlink’s **Proof of Reserve** can validate land ownership records from fragmented African registries, enabling trustless fractionalization of farmland.  
 
-## What's inside?
+3. **Stablecoin Integration**  
+   - Use **Chainlink CCIP** (Cross-Chain Interoperability Protocol) to facilitate cross-border payments and connect stablecoins to DeFi protocols.  
 
-This Turborepo includes the following packages/apps:
+4. **Fraud Prevention**  
+   - Leverage **Chainlink VRF** (Verifiable Random Function) for transparent claim verification and fraud detection in insurance pools.  
 
-### Apps and Packages
+---
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+#### **Frontend (Next.js)**  
+Next.js provides a scalable, user-friendly interface optimized for low-bandwidth environments:  
+1. **Mobile-First Design**  
+   - Built lightweight Progressive Web Apps (PWAs) with Next.js to ensure accessibility on low-end smartphones, even with intermittent internet.  
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+2. **Wallet Integration**  
+   - Used **wagmi** or **Web3Modal** libraries to connect MetaMask, Trust Wallet, and local mobile money apps ( M-Pesa) for premium payments and token purchases.  
 
-### Utilities
+3. **Localization**  
+   - Implement multilingual support (e.g., Swahili, Yoruba) and region-specific UI/UX patterns ( SMS-based 2FA for farmers without smartphones).  
 
-This Turborepo has some additional tools already setup for you:
+4. **Analytics & Education**  
+   - Embed tutorials and dashboards to explain complex concepts (e.g., parametric insurance) using Next.js’s static site generation (SSG) for fast loading.  
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+---
 
-### Build
+### **Challenges to Address**  
+| **Challenge**                 | **Solution with Chainlink + Next.js**                                                                 |  
+|--------------------------------|-------------------------------------------------------------------------------------------------------|  
+| **Unreliable Internet**        | Offline-first Next.js caching + Chainlink’s decentralized oracle redundancy for data availability.     |  
+| **Low Digital Literacy**       | Gamified onboarding (e.g., NFT achievement badges) and voice-guided tutorials in local languages.     |  
+| **Regulatory Compliance**      | Chainlink’s Proof of Reserve + KYC integration via Next.js forms (e.g., Fractal ID for African users).|  
+| **High Gas Fees**              | Deploy on Chainlink-supported L2s (Avalanche Fuji) for sub-$0.01 transactions.                   |  
 
-To build all apps and packages, run the following command:
+---
 
-```
-cd my-turborepo
-pnpm build
-```
+### **Example Use Case: Drought Insurance in Kenya**  
+1. **Backend**:  
+   - Chainlink oracles pull rainfall data from Kenyan Meteorological Department APIs.  
+   - Smart contract automatically pays out stablecoins to farmers’ wallets if rainfall < 50mm/month.  
 
-### Develop
+2. **Frontend**:  
+   - Next.js app displays real-time weather data and payout status.  
+   - Farmers claim via USSD codes (*544#) if they lack smartphones.  
 
-To develop all apps and packages, run the following command:
+---
 
-```
-cd my-turborepo
-pnpm dev
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+### **Tech Stack Applied**  
+- **Blockchain**: Ethereum L2 Avalanche for scalability.  
+- **Oracles**: Chainlink Data Feeds + Functions for off-chain computation.  
+- **Frontend**: Next.js + Tailwind CSS + The Graph (for querying on-chain data).  
+- **Mobile Integration**: Partnered with Africa’s Talking for SMS/USSD gateways.  
