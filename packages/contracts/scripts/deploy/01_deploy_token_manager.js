@@ -25,8 +25,8 @@ module.exports = async ({ getNamedAccounts, deployments, network }) => {
   
   // Configure destination chains
   const chains = [
-    { selector: 14767482510784806043, address: "0x..." }, // Avalanche Fuji
-    { selector: 16015286601757825753, address: "0x..." }  // Ethereum Sepolia
+    { selector: 14767482510784806043, address: "0xF694E193200268f9a4868e4Aa017A0118C9a8177" }, // Avalanche Fuji
+    { selector: 16015286601757825753, address: "0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59" }  // Ethereum Sepolia
   ];
   
   for (const chain of chains) {

@@ -22,7 +22,7 @@ module.exports = async ({ getNamedAccounts, deployments, network }) => {
   
   // Set source bridge (Ethereum Sepolia)
   const chainSelector = "16015286601757825753"; // Sepolia chain selector
-  const sepoliaBridge = "0x0000000000000000000000000000000000000000"; // bridge address
+  const sepoliaBridge = "0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59"; // bridge address
   await minter.setSourceBridge(chainSelector, sepoliaBridge);
   
   // Fund with cKES for demo

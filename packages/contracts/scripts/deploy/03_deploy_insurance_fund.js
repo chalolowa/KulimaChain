@@ -11,11 +11,6 @@ module.exports = async ({ getNamedAccounts, deployments, network }) => {
   const routerAddress = "0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0"; // Functions Router address
   const donId = process.env.CHAINLINK_FUNCTIONS_DON_ID;
   const subscriptionId = process.env.CHAINLINK_FUNCTIONS_SUBSCRIPTION_ID;
-  
-  // Stablecoin addresses
-  const premiumToken = network.name === "avalanche"
-    ? "0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664" // USDC.e
-    : "0x3eBDeaA0DB3FfDe96E7a0DBBAFEC961FC50F725F"; // Fuji test USDC
     
   const gasLimit = 300000;
 
