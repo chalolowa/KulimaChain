@@ -4,30 +4,28 @@ pragma solidity ^0.8.19;
 import "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
 import "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";
 import "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./KulimaTokenManager.sol";
 
 contract InsuranceFund is FunctionsClient, ConfirmedOwner {
     using FunctionsRequest for FunctionsRequest.Request;
-
-    // State variables
+    
     struct Policy {
         address farmer;
         uint256 premium;
         uint256 coverageAmount;
         uint256 startDate;
         uint256 endDate;
-        string location; // GPS coordinates
+        string location;
         bool isActive;
         bool claimed;
     }
 
+    // State variables
     mapping(bytes32 => Policy) public policies;
     mapping(bytes32 => bool) public pendingRequests;
     mapping(bytes32 => bytes32) public requestToPolicy;
-    mapping(address => uint256) public farmerBalances;
-
-    IERC20 public immutable premiumToken;
-    IERC20 public immutable payoutToken;
+    
+    KulimaTokenManager public tokenManager;
     uint64 public subscriptionId;
     uint32 public gasLimit;
     bytes32 public donID;
@@ -35,21 +33,16 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
     // Events
     event PolicyCreated(bytes32 policyId, address indexed farmer);
     event PayoutTriggered(bytes32 policyId, uint256 amount);
-    event RequestSent(bytes32 requestId);
     event RequestFulfilled(bytes32 requestId, bytes response, bytes err);
-    event FundsDeposited(address indexed sender, uint256 amount);
-    event FundsWithdrawn(address indexed farmer, uint256 amount);
 
     constructor(
         address router,
-        address _premiumToken,
-        address _payoutToken,
+        address _tokenManager,
         uint64 _subscriptionId,
         uint32 _gasLimit,
         bytes32 _donID
     ) FunctionsClient(router) ConfirmedOwner(msg.sender) {
-        premiumToken = IERC20(_premiumToken);
-        payoutToken = IERC20(_payoutToken);
+        tokenManager = KulimaTokenManager(_tokenManager);
         subscriptionId = _subscriptionId;
         gasLimit = _gasLimit;
         donID = _donID;
@@ -74,7 +67,7 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
         require(coverageAmount > premium, "Invalid coverage");
         
         // Transfer premium from farmer
-        premiumToken.transferFrom(msg.sender, address(this), premium);
+        //premiumToken.transferFrom(msg.sender, address(this), premium);
         
         bytes32 policyId = keccak256(abi.encodePacked(farmer, block.timestamp));
         policies[policyId] = Policy({
@@ -92,10 +85,16 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
     }
 
     /**
-     * @notice Triggers insurance payout evaluation
+     * @notice Evaluates a policy for payout based on weather conditions
      * @param policyId Policy ID to evaluate
+     * @param source JavaScript source code for Chainlink Functions
+     * @param args Arguments for the JavaScript function
      */
-    function evaluatePolicy(bytes32 policyId) external onlyOwner {
+    function evaluatePolicy(
+        bytes32 policyId,
+        string calldata source,
+        string[] calldata args
+    ) external onlyOwner {
         Policy storage policy = policies[policyId];
         require(policy.isActive, "Policy inactive");
         require(block.timestamp > policy.endDate, "Policy active");
@@ -170,16 +169,20 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
         Policy storage policy = policies[policyId];
         
         if (err.length > 0) {
-            // Handle error (log, retry, etc.)
             emit RequestFulfilled(requestId, response, err);
             return;
         }
         
-        // Decode response: "true" or "false"
-        bool conditionMet = keccak256(response) == keccak256(abi.encodePacked("true"));
+        bool conditionMet = abi.decode(response, (bool));
         
         if (conditionMet && !policy.claimed) {
-            payoutToken.transfer(policy.farmer, policy.coverageAmount);
+            // Use Token Manager for secure payout
+            tokenManager.processPayout(
+                policy.farmer,
+                policy.coverageAmount,
+                policyId
+            );
+            
             policy.claimed = true;
             emit PayoutTriggered(policyId, policy.coverageAmount);
         }
@@ -187,25 +190,8 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
         emit RequestFulfilled(requestId, response, err);
     }
 
-    /**
-     * @notice Allows farmers to withdraw claim payouts
-     */
-    function withdrawPayout() external {
-        uint256 amount = farmerBalances[msg.sender];
-        require(amount > 0, "No balance");
-        
-        farmerBalances[msg.sender] = 0;
-        payoutToken.transfer(msg.sender, amount);
-        emit FundsWithdrawn(msg.sender, amount);
-    }
-
     // Management functions
-    function updateSubscriptionId(uint64 _subscriptionId) external onlyOwner {
-        subscriptionId = _subscriptionId;
-    }
-
-    function depositStablecoins(uint256 amount) external {
-        payoutToken.transferFrom(msg.sender, address(this), amount);
-        emit FundsDeposited(msg.sender, amount);
+    function updateTokenManager(address _tokenManager) external onlyOwner {
+        tokenManager = KulimaTokenManager(_tokenManager);
     }
 }

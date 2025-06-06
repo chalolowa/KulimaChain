@@ -11,29 +11,25 @@ module.exports = async ({ getNamedAccounts, deployments, network }) => {
     : "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"; // Hardhat account 1
   
   // Chainlink config
-  const routerAddress = networks[network.name].router;
+  const TokenManager = "0x0000000000000000000000000000000000000001"; // Placeholder for token manager
   const compliance = "0x2f68C1bEa98ceBcEADA2c2dD89E20D0E2F6f4Dd2"; // Test compliance
-  const landOracle = (await deployments.get("WeatherOracle")).address;
-  
-  // cKES address (testnet)
-  const cKES = network.name === "avalanche"
-    ? "0x5C6d5D6E4fF1f2D8A5F8736a9D2a4B0dC5bD5F5e" // Mainnet cKES
-    : "0x3eBDeaA0DB3FfDe96E7a0DBBAFEC961FC50F725F"; // Fuji test cKES
+  const landOracle = network.name === "avalanche"
+    ? "0x0A77230d17318075983913bC2145DB16C7366156" // Example: AVAX/USD on Avalanche
+    : "0x694AA1769357215DE4FAC081bf1f309aDC325306"; // Example: ETH/USD on Sepolia
 
   await deploy("FarmToken", {
     from: deployer,
-    args: [routerAddress, compliance, landOracle, cKES, landRegistryAuthority],
+    args: [TokenManager, compliance, landOracle, landRegistryAuthority],
     log: true,
   });
   
   const farmToken = await ethers.getContract("FarmToken", deployer);
   
-  // Set destination bridge (Avalanche Fuji)
-  const fujiSelector = 14767482510784806043;
-  const fujiBridge = "0x..."; // Will deploy separately
-  await farmToken.setDestinationBridge(fujiSelector, fujiBridge);
-  
-  console.log("FarmToken deployed with CCIP support");
+  console.log("FarmToken deployed successfully");
+  console.log("Contract address:", farmToken.address);
+  console.log("Land Registry Authority:", landRegistryAuthority);
+  console.log("Land Oracle:", landOracle);
+  console.log("Compliance:", compliance);
 };
 module.exports.tags = ["token"];
 module.exports.dependencies = ["oracle"];

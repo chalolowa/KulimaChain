@@ -15,7 +15,9 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   const functionsRouterAddress = '0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0'; // Fuji
   const functionsRouter = await ethers.getContractAt(
-    'FunctionsRouter',
+    ["function addConsumer(uint64 subscriptionId, address consumer) external",
+        "function getSubscription(uint64 subscriptionId) external view returns (uint96 balance, uint64 reqCount, address owner, address[] memory consumers)"
+      ],
     functionsRouterAddress,
     deployer
   );
