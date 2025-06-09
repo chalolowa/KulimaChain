@@ -59,7 +59,7 @@ module.exports = async ({ getNamedAccounts, deployments, network }) => {
     const secretsUpload = spawnSync('npx', [
       'hardhat', 
       'run', 
-      'scripts/operations/upload_secrets.js', 
+      'scripts/upload_secrets.js', 
       '--network', 
       network.name
     ], {
