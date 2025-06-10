@@ -4,10 +4,13 @@ pragma solidity ^0.8.19;
 import "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
 import "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";
 import "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
-import "./KulimaTokenManager.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./IAKSStablecoin.sol";
+import "./InsurancePayout.sol";
 
 contract InsuranceFund is FunctionsClient, ConfirmedOwner {
     using FunctionsRequest for FunctionsRequest.Request;
+    using SafeERC20 for IAKSStablecoin;
     
     struct Policy {
         address farmer;
@@ -25,7 +28,8 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
     mapping(bytes32 => bool) public pendingRequests;
     mapping(bytes32 => bytes32) public requestToPolicy;
     
-    KulimaTokenManager public tokenManager;
+    InsurancePayout public payoutManager;
+    IAKSStablecoin public aks;
     uint64 public subscriptionId;
     uint32 public gasLimit;
     bytes32 public donID;
@@ -37,12 +41,14 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
 
     constructor(
         address router,
-        address _tokenManager,
+        address _payoutManager,
+        addressm _aks,
         uint64 _subscriptionId,
         uint32 _gasLimit,
         bytes32 _donID
     ) FunctionsClient(router) ConfirmedOwner(msg.sender) {
-        tokenManager = KulimaTokenManager(_tokenManager);
+        payoutManager = InsurancePayout(_payoutManager);
+        aks = IAKSStablecoin(_aks);
         subscriptionId = _subscriptionId;
         gasLimit = _gasLimit;
         donID = _donID;
@@ -57,7 +63,6 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
      * @param location GPS coordinates "lat,lon"
      */
     function createPolicy(
-        address farmer,
         uint256 premium,
         uint256 coverageAmount,
         uint256 duration,
@@ -66,12 +71,12 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
         require(premium > 0, "Invalid premium");
         require(coverageAmount > premium, "Invalid coverage");
         
-        // Transfer premium from farmer
-        //premiumToken.transferFrom(msg.sender, address(this), premium);
+        // Transfer premium from farmer in AKS
+        aks.transferFrom(msg.sender, address(this), premium);
         
-        bytes32 policyId = keccak256(abi.encodePacked(farmer, block.timestamp));
+        bytes32 policyId = keccak256(abi.encodePacked(msg.sender, block.timestamp));
         policies[policyId] = Policy({
-            farmer: farmer,
+            farmer: msg.sender,
             premium: premium,
             coverageAmount: coverageAmount,
             startDate: block.timestamp,
@@ -81,7 +86,7 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
             claimed: false
         });
         
-        emit PolicyCreated(policyId, farmer);
+        emit PolicyCreated(policyId, msg.sender);
     }
 
     /**
@@ -176,8 +181,8 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
         bool conditionMet = abi.decode(response, (bool));
         
         if (conditionMet && !policy.claimed) {
-            // Use Token Manager for secure payout
-            tokenManager.processPayout(
+            // Use InsurancePayout for secure payout
+            payoutManager.processPayout(
                 policy.farmer,
                 policy.coverageAmount,
                 policyId
@@ -191,7 +196,12 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
     }
 
     // Management functions
-    function updateTokenManager(address _tokenManager) external onlyOwner {
-        tokenManager = KulimaTokenManager(_tokenManager);
+    function updatePayoutManager(address _payoutManager) external onlyOwner {
+        payoutManager = InsurancePayout(_payoutManager);
+    }
+
+    function withdrawAKS(address recipient) external onlyOwner {
+        uint256 balance = aks.balanceOf(address(this));
+        aks.transfer(recipient, balance);
     }
 }
