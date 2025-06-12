@@ -4,12 +4,12 @@ pragma solidity ^0.8.27;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC20Burnable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @custom:security-contact locha.softwaredev@gmail.com
-contract AvalancheKenyaShilling is ERC20, ERC20Burnable, ERC20Permit, Ownable, Pausable, ReentrancyGuard {
+contract AvalancheKenyaShilling is ERC20, ERC20Burnable, ERC20Permit, Ownable, ERC20Pausable, ReentrancyGuard {
     address public bridge;
     address public reserve;
     uint256 public constant MAX_SUPPLY = 1_000_000_000 * 10**18;
@@ -26,7 +26,7 @@ contract AvalancheKenyaShilling is ERC20, ERC20Burnable, ERC20Permit, Ownable, P
         ERC20Permit("Avalanche Kenya Shilling")
         Ownable(initialOwner)
     {
-        require(initialOwner != address(0), "Initial owner cannot be zero address";
+        require(initialOwner != address(0), "Initial owner cannot be zero address");
     }
 
     modifier onlyBridge() {

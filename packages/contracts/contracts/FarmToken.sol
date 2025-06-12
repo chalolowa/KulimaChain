@@ -7,30 +7,13 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Pausable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@chainlink/contracts-ccip/src/v0.8/ccip/interfaces/IRouterClient.sol";
-import "@chainlink/contracts-ccip/src/v0.8/ccip/applications/CCIPReceiver.sol";
-import "@chainlink/contracts-ccip/src/v0.8/ccip/libraries/Client.sol";
-import "./IAKSStablecoin.sol";
+import "@chainlink/contracts-ccip/contracts/interfaces/IRouterClient.sol";
+import { CCIPReceiver } from "@chainlink/contracts-ccip/contracts/applications/CCIPReceiver.sol";
+import "@chainlink/contracts-ccip/contracts/libraries/Client.sol";
 
-interface ICompliance {
-    function canTransfer(
-        address from,
-        address to,
-        uint256 id,
-        uint256 amount
-    ) external view returns (bool);
-}
-
-interface IAKSBridge {
-    function sendAKS(
-        uint64 _destinationChainSelector,
-        address _receiver,
-        uint256 _amount
-    ) external payable;
-}
-
-contract FarmToken is ERC1155, AccessControl, ERC1155Pausable, ERC1155Burnable, ERC1155Supply, CCIPReceiver {
+contract FarmToken is ERC1155, AccessControl, ERC1155Pausable, ERC1155Burnable, ERC1155Supply {
     using ECDSA for bytes32;
+    IRouterClient public i_router;
     
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     
@@ -43,7 +26,7 @@ contract FarmToken is ERC1155, AccessControl, ERC1155Pausable, ERC1155Burnable, 
         address verifiedBy;
         uint256 verifiedAt;
         address owner;
-        uint256 supply;
+        bool isFractionalized;
     }
 
     // Farm management
@@ -52,57 +35,25 @@ contract FarmToken is ERC1155, AccessControl, ERC1155Pausable, ERC1155Burnable, 
     mapping(bytes32 => bool) public usedTitleDeedHashes;
     address public landRegistryAuthority;
     
-    // Compliance & Stablecoin
-    ICompliance public compliance;
-    IAKSStablecoin public aksStablecoin;
-    IAKSBridge public aksBridge;
-    
-    // Cross-chain
-    mapping(uint64 => address) public chainIdToContract;
-    mapping(bytes32 => bool) public processedMessages;
-    uint64 public currentChainId;
-    
     // Events
     event FarmTokenized(
         uint256 indexed farmId,
         address indexed beneficiary,
         uint256 valuation,
-        uint256 initialSupply,
         string titleDeedCID
     );
-    event ComplianceUpdated(address newCompliance);
+    event Fractionalized(uint256 indexed farmId, address indexed owner);
+    event FarmReclaimed(uint256 indexed farmId, address indexed owner);
     event LandRegistryUpdated(address newAuthority);
-    event CrossChainTransfer(
-        uint256 indexed farmId,
-        uint256 amount,
-        address from,
-        uint64 fromChain,
-        address to,
-        uint64 toChain
-    );
-    event FarmPriceProposed(
-        uint256 indexed farmId,
-        uint256 proposedPrice
-    );
+    event FarmPriceProposed(uint256 indexed farmId, uint256 proposedPrice);
 
     constructor(
         address _initialOwner,
-        address _landRegistryAuthority,
-        address _compliance,
-        address _aksStablecoin,
-        address _aksBridge,
-        address _ccipRouter,
-        uint64 _currentChainId
+        address _landRegistryAuthority
     )
         ERC1155("")
-        CCIPReceiver(_ccipRouter)
     {
         landRegistryAuthority = _landRegistryAuthority;
-        compliance = ICompliance(_compliance);
-        aksStablecoin = IAKSStablecoin(_aksStablecoin);
-        aksBridge = IAKSBridge(_aksBridge);
-        currentChainId = _currentChainId;
-        
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         _grantRole(MINTER_ROLE, _initialOwner);
     }
@@ -113,14 +64,12 @@ contract FarmToken is ERC1155, AccessControl, ERC1155Pausable, ERC1155Burnable, 
         string memory geoLocation,
         uint256 sizeHectares,
         uint256 proposedValuation,
-        uint256 initialSupply,
         string memory titleDeedCID,
         bytes32 titleDeedHash,
         bytes memory authoritySignature,
         uint256 authorityValuation
-    ) external whenNotPaused {
+    ) external {
         require(beneficiary != address(0), "Invalid beneficiary");
-        require(initialSupply > 0, "Invalid supply");
         require(!usedTitleDeedHashes[titleDeedHash], "Title deed already used");
         
         // Verify authority signature
@@ -150,11 +99,24 @@ contract FarmToken is ERC1155, AccessControl, ERC1155Pausable, ERC1155Burnable, 
             verifiedBy: signer,
             verifiedAt: block.timestamp,
             owner: beneficiary,
-            supply: initialSupply
+            isFractionalized: false
         });
         
-        _mint(beneficiary, farmId, initialSupply, "");
-        emit FarmTokenized(farmId, beneficiary, authorityValuation, initialSupply, titleDeedCID);
+        _mint(beneficiary, farmId, 1, "");
+        emit FarmTokenized(farmId, beneficiary, authorityValuation, titleDeedCID);
+    }
+
+    function markAsFractionalized(uint256 farmId) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(!farmDetails[farmId].isFractionalized, "Already fractionalized");
+        farmDetails[farmId].isFractionalized = true;
+        emit Fractionalized(farmId, farmDetails[farmId].owner);
+    }
+
+    function reclaimFarm(uint256 farmId) external {
+        require(farmDetails[farmId].owner == msg.sender, "Not farm owner");
+        require(farmDetails[farmId].isFractionalized, "Not fractionalized");
+        farmDetails[farmId].isFractionalized = false;
+        emit FarmReclaimed(farmId, msg.sender);
     }
 
     /// @notice Allows farmers to propose new valuation
@@ -163,117 +125,9 @@ contract FarmToken is ERC1155, AccessControl, ERC1155Pausable, ERC1155Burnable, 
         emit FarmPriceProposed(farmId, proposedPrice);
     }
 
-    /// @notice Cross-chain transfer using CCIP
-    function transferCrossChain(
-        uint64 destinationChainId,
-        address receiver,
-        uint256 farmId,
-        uint256 amount
-    ) external payable whenNotPaused {
-        require(balanceOf(msg.sender, farmId) >= amount, "Insufficient balance");
-        require(chainIdToContract[destinationChainId] != address(0), "Unsupported chain");
-        
-        // Burn tokens from sender
-        _burn(msg.sender, farmId, amount);
-        
-        // Build CCIP message
-        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
-            receiver: abi.encode(chainIdToContract[destinationChainId]),
-            data: abi.encode(msg.sender, receiver, farmId, amount),
-            tokenAmounts: new Client.EVMTokenAmount[](0),
-            extraArgs: "",
-            feeToken: address(0)
-        });
-        
-        // Send message
-        uint256 fee = IRouterClient(i_router).getFee(destinationChainId, message);
-        require(msg.value >= fee, "Insufficient fee");
-        
-        bytes32 messageId = IRouterClient(i_router).ccipSend{value: fee}(
-            destinationChainId,
-            message
-        );
-        
-        emit CrossChainTransfer(
-            farmId,
-            amount,
-            msg.sender,
-            currentChainId,
-            receiver,
-            destinationChainId
-        );
-    }
-
-    /// @notice Handle incoming CCIP messages
-    function _ccipReceive(Client.Any2EVMMessage memory message) internal override {
-        require(!processedMessages[message.messageId], "Message already processed");
-        processedMessages[message.messageId] = true;
-        
-        (address from, address to, uint256 farmId, uint256 amount) = 
-            abi.decode(message.data, (address, address, uint256, uint256));
-        
-        // Mint tokens on destination chain
-        _mint(to, farmId, amount, "");
-        
-        emit CrossChainTransfer(
-            farmId,
-            amount,
-            from,
-            message.sourceChainId,
-            to,
-            currentChainId
-        );
-    }
-
-    /// @notice Transfer AKS using AKSBridge
-    function transferAKSCrossChain(
-        uint64 destinationChainId,
-        address receiver,
-        uint256 amount
-    ) external payable {
-        aksStablecoin.transferFrom(msg.sender, address(this), amount);
-        aksStablecoin.approve(address(aksBridge), amount);
-        aksBridge.sendAKS{value: msg.value}(destinationChainId, receiver, amount);
-    }
-
-    // Compliance enforcement
-    function _update(
-        address from,
-        address to,
-        uint256[] memory ids,
-        uint256[] memory values
-    ) internal override(ERC1155, ERC1155Pausable, ERC1155Supply) {
-        // Compliance check for transfers (not mints/burns)
-        if (from != address(0) && to != address(0) && address(compliance) != address(0)) {
-            for (uint256 i = 0; i < ids.length; i++) {
-                require(compliance.canTransfer(from, to, ids[i], values[i]), "Transfer not compliant");
-            }
-        }
-        
-        super._update(from, to, ids, values);
-    }
-
-    // Administration functions
-    function setCompliance(address _compliance) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        compliance = ICompliance(_compliance);
-        emit ComplianceUpdated(_compliance);
-    }
-
     function setLandRegistryAuthority(address _authority) external onlyRole(DEFAULT_ADMIN_ROLE) {
         landRegistryAuthority = _authority;
         emit LandRegistryUpdated(_authority);
-    }
-
-    function setChainContract(uint64 chainId, address contractAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        chainIdToContract[chainId] = contractAddress;
-    }
-
-    function setAKSStablecoin(address _aksStablecoin) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        aksStablecoin = IAKSStablecoin(_aksStablecoin);
-    }
-
-    function setAKSBridge(address _aksBridge) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        aksBridge = IAKSBridge(_aksBridge);
     }
 
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -288,6 +142,15 @@ contract FarmToken is ERC1155, AccessControl, ERC1155Pausable, ERC1155Burnable, 
         external onlyRole(MINTER_ROLE)
     {
         _mint(to, id, amount, data);
+    }
+
+    function _update(
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory values
+    ) internal override(ERC1155, ERC1155Pausable, ERC1155Supply) {
+        super._update(from, to, ids, values);
     }
 
     // Supports interfaces for ERC1155 and AccessControl

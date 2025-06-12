@@ -1,32 +1,43 @@
-/ SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@chainlink/contracts-ccip/src/v0.8/ccip/applications/CCIPReceiver.sol";
-import "@chainlink/contracts-ccip/src/v0.8/ccip/interfaces/IRouterClient.sol";
-import "@chainlink/contracts-ccip/src/v0.8/ccip/libraries/Client.sol";
+import "@chainlink/contracts-ccip/contracts/applications/CCIPReceiver.sol";
+import "@chainlink/contracts-ccip/contracts/interfaces/IRouterClient.sol";
+import "@chainlink/contracts-ccip/contracts/libraries/Client.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface IAKS {
     function bridgeBurn(address from, uint256 amount) external;
     function bridgeMint(address to, uint256 amount) external;
 }
 
-contract AKSBridge is CCIPReceiver, Ownable, Pausable, ReentrancyGuard {
-    IAKS public immutable token;
+interface IKFS {
+    function bridgeBurn(address from, uint256 amount) external;
+    function bridgeMint(address to, uint256 amount) external;
+    function lockShares(address account, uint256 amount) external;
+    function unlockShares(address account) external;
+}
+
+contract TokensBridge is CCIPReceiver, Ownable, ReentrancyGuard {
+    IAKS public immutable aksToken;
     IRouterClient public router;
     uint64 public currentChainSelector;
     
-    // Chain Selectors: Avalanche=14767482510784806043, Ethereum=16015286601757825753
+    // Chain Selectors
     mapping(uint64 => address) public destinationBridges;
     mapping(uint64 => bool) public supportedChains;
+    
+    // Token support
+    mapping(address => bool) public supportedTokens;
+    mapping(uint64 => mapping(address => address)) public tokenMappings; // sourceToken => destToken
     
     uint256 public constant MAX_TRANSFER_AMOUNT = 1000000 * 10**18; // 1M tokens max per transfer
     
     event TokensSent(
         uint64 destinationChainSelector,
+        address token,
         address receiver,
         uint256 amount,
         bytes32 messageId
@@ -34,6 +45,7 @@ contract AKSBridge is CCIPReceiver, Ownable, Pausable, ReentrancyGuard {
     
     event TokensReceived(
         uint64 sourceChainSelector,
+        address token,
         address receiver,
         uint256 amount,
         bytes32 messageId
@@ -41,15 +53,18 @@ contract AKSBridge is CCIPReceiver, Ownable, Pausable, ReentrancyGuard {
     
     event DestinationBridgeSet(uint64 chainSelector, address bridge);
     event ChainSupportUpdated(uint64 chainSelector, bool supported);
+    event TokenSupportUpdated(address token, bool supported);
+    event TokenMappingSet(uint64 chainSelector, address sourceToken, address destToken);
 
     constructor(
         address _router,
-        address _token,
+        address _aksToken,
         uint64 _chainSelector
     ) CCIPReceiver(_router) {
         router = IRouterClient(_router);
-        token = IAKS(_token);
+        aksToken = IAKS(_aksToken);
         currentChainSelector = _chainSelector;
+        supportedTokens[_aksToken] = true;
     }
 
     function setDestinationBridge(
@@ -71,27 +86,56 @@ contract AKSBridge is CCIPReceiver, Ownable, Pausable, ReentrancyGuard {
         emit ChainSupportUpdated(_chainSelector, _supported);
     }
 
-    // Send AKS to another chain
-    function sendAKS(
+    function setTokenSupport(address token, bool supported) external onlyOwner {
+        supportedTokens[token] = supported;
+        emit TokenSupportUpdated(token, supported);
+    }
+
+    function setTokenMapping(
+        uint64 _chainSelector,
+        address sourceToken,
+        address destToken
+    ) external onlyOwner {
+        tokenMappings[_chainSelector][sourceToken] = destToken;
+        emit TokenMappingSet(_chainSelector, sourceToken, destToken);
+    }
+
+    // Send tokens (AKS or KFS) to another chain
+    function sendTokens(
+        address tokenAddress,
         uint64 _destinationChainSelector,
         address _receiver,
         uint256 _amount
-    ) external payable whenNotPaused nonReentrant {
+    ) external payable nonReentrant {
         require(_receiver != address(0), "Invalid receiver address");
         require(_amount > 0, "Amount must be greater than 0");
         require(_amount <= MAX_TRANSFER_AMOUNT, "Amount exceeds maximum transfer limit");
         require(supportedChains[_destinationChainSelector], "Destination chain not supported");
+        require(supportedTokens[tokenAddress], "Token not supported");
         require(
             destinationBridges[_destinationChainSelector] != address(0),
             "Destination bridge not set"
         );
+        require(
+            tokenMappings[_destinationChainSelector][tokenAddress] != address(0),
+            "Token mapping not set"
+        );
 
-        // Burn tokens first
-        token.bridgeBurn(msg.sender, _amount);
+        // Handle token locking/burning
+        if (tokenAddress == address(aksToken)) {
+            aksToken.bridgeBurn(msg.sender, _amount);
+        } else {
+            // For KFS tokens
+            IKFS(tokenAddress).bridgeBurn(msg.sender, _amount);
+        }
 
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(destinationBridges[_destinationChainSelector]),
-            data: abi.encode(_receiver, _amount),
+            data: abi.encode(
+                tokenMappings[_destinationChainSelector][tokenAddress], // dest token address
+                _receiver, 
+                _amount
+            ),
             tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: "",
             feeToken: address(0) // Pay fees in native gas
@@ -110,13 +154,13 @@ contract AKSBridge is CCIPReceiver, Ownable, Pausable, ReentrancyGuard {
             payable(msg.sender).transfer(msg.value - fee);
         }
 
-        emit TokensSent(_destinationChainSelector, _receiver, _amount, messageId);
+        emit TokensSent(_destinationChainSelector, tokenAddress, _receiver, _amount, messageId);
     }
 
-    // Receive AKS from another chain
+    // Receive tokens from another chain
     function _ccipReceive(
         Client.Any2EVMMessage memory message
-    ) internal override whenNotPaused {
+    ) internal override {
         uint64 sourceChainSelector = message.sourceChainSelector;
         require(supportedChains[sourceChainSelector], "Source chain not supported");
         
@@ -126,30 +170,30 @@ contract AKSBridge is CCIPReceiver, Ownable, Pausable, ReentrancyGuard {
             "Invalid sender"
         );
 
-        (address receiver, uint256 amount) = abi.decode(
+        (address tokenAddress, address receiver, uint256 amount) = abi.decode(
             message.data,
-            (address, uint256)
+            (address, address, uint256)
         );
         
         require(receiver != address(0), "Invalid receiver");
         require(amount > 0, "Invalid amount");
+        require(supportedTokens[tokenAddress], "Token not supported");
 
-        token.bridgeMint(receiver, amount);
-        emit TokensReceived(sourceChainSelector, receiver, amount, message.messageId);
+        // Handle token minting
+        if (tokenAddress == address(aksToken)) {
+            aksToken.bridgeMint(receiver, amount);
+        } else {
+            // For KFS tokens
+            IKFS(tokenAddress).bridgeMint(receiver, amount);
+        }
+        
+        emit TokensReceived(sourceChainSelector, tokenAddress, receiver, amount, message.messageId);
     }
     
-    // Emergency functions
-    function pause() external onlyOwner {
-        _pause();
-    }
-    
-    function unpause() external onlyOwner {
-        _unpause();
-    }
-
     // Get estimated fee for cross-chain transfer
     function getTransferFee(
         uint64 _destinationChainSelector,
+        address tokenAddress,
         address _receiver,
         uint256 _amount
     ) external view returns (uint256) {
@@ -157,10 +201,18 @@ contract AKSBridge is CCIPReceiver, Ownable, Pausable, ReentrancyGuard {
             destinationBridges[_destinationChainSelector] != address(0),
             "Destination bridge not set"
         );
+        require(
+            tokenMappings[_destinationChainSelector][tokenAddress] != address(0),
+            "Token mapping not set"
+        );
 
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(destinationBridges[_destinationChainSelector]),
-            data: abi.encode(_receiver, _amount),
+            data: abi.encode(
+                tokenMappings[_destinationChainSelector][tokenAddress],
+                _receiver, 
+                _amount
+            ),
             tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: "",
             feeToken: address(0)
@@ -174,15 +226,13 @@ contract AKSBridge is CCIPReceiver, Ownable, Pausable, ReentrancyGuard {
         require(_beneficiary != address(0), "Invalid beneficiary");
         uint256 balance = address(this).balance;
         require(balance > 0, "No funds to withdraw");
-        
         payable(_beneficiary).transfer(balance);
     }
     
     // Emergency token recovery
     function recoverToken(address _token, address _beneficiary, uint256 _amount) external onlyOwner {
-        require(_token != address(token), "Cannot recover bridge token");
+        require(_token != address(aksToken), "Cannot recover bridge token");
         require(_beneficiary != address(0), "Invalid beneficiary");
-        
         IERC20(_token).transfer(_beneficiary, _amount);
     }
 }

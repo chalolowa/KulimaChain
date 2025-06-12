@@ -2,11 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
-import "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/interfaces/IFunctionsRouter.sol";
+import "@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
+import "@chainlink/contracts/src/v0.8/functions/v1_0_0/interfaces/IFunctionsRouter.sol";
 
 interface IAKS {
     function mint(address to, uint256 amount) external;
@@ -16,7 +16,7 @@ interface IAKS {
     function unpause() external;
 }
 
-contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
+contract AKSReserve is Ownable, ReentrancyGuard, ERC20Pausable, FunctionsClient {
     IAKS public immutable token;
 
     // Chainlink Functions configuration
@@ -75,7 +75,7 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
         address _functionsRouter,
         bytes memory _sourceCode,
         string memory _secretsURL,
-        uint64 _subscriptionId
+        uint64 _subscriptionId,
         address _initialAuditor
     ) FunctionsClient(_functionsRouter) {
         require(_token != address(0), "Invalid token address");

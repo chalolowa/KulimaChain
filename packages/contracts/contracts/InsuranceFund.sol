@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
-import "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";
+import "@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
+import "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 import "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./IAKSStablecoin.sol";
@@ -42,7 +42,7 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
     constructor(
         address router,
         address _payoutManager,
-        addressm _aks,
+        address _aks,
         uint64 _subscriptionId,
         uint32 _gasLimit,
         bytes32 _donID
@@ -56,7 +56,6 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
 
     /**
      * @notice Creates a new insurance policy
-     * @param farmer Farmer's wallet address
      * @param premium Premium amount in stablecoins
      * @param coverageAmount Payout amount if trigger condition met
      * @param duration Policy duration in seconds
@@ -105,11 +104,11 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
         require(block.timestamp > policy.endDate, "Policy active");
 
         // JavaScript source code for Chainlink Functions
-        string memory source = 
+        string memory jsSourceCode = 
             "const tomorrowioApiKey = secrets.TOMORROWIO_API_KEY;"
             "const openweatherApiKey = secrets.OPEN_WEATHER_API_KEY;"
-            "const location = args[0];"
-            "const threshold = args[1];"
+            "const location = localArgs[0];"
+            "const threshold = localArgs[1];"
             
             // Tomorrow.io API call
             "const tomorrowioResponse = await Functions.makeHttpRequest({"
@@ -137,13 +136,13 @@ contract InsuranceFund is FunctionsClient, ConfirmedOwner {
             "return Functions.encodeString(isDrought.toString());";
 
         FunctionsRequest.Request memory req;
-        req.initializeRequestForInlineJavaScript(source);
+        req.initializeRequestForInlineJavaScript(jsSourceCode);
         
         // Set arguments: [location, rainfall threshold]
-        string[] memory args = new string[](2);
-        args[0] = policy.location;
-        args[1] = "50"; // 50mm threshold
-        req.setArgs(args);
+        string[] memory localArgs = new string[](2);
+        localArgs[0] = policy.location;
+        localArgs[1] = "50"; // 50mm threshold
+        req.setArgs(localArgs);
         
         bytes32 requestId = _sendRequest(
             req.encodeCBOR(),
