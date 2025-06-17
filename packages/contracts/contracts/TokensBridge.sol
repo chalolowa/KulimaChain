@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@chainlink/contracts-ccip/contracts/applications/CCIPReceiver.sol";
 import "@chainlink/contracts-ccip/contracts/interfaces/IRouterClient.sol";

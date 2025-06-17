@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 import "./IAKSStablecoin.sol";
-import "./IAKSBridge.sol";
+import "./ITokensBridge.sol";
 
 interface IKFShares {
     function initialize(

@@ -7,12 +7,21 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@chainlink/contracts-ccip/contracts/interfaces/IRouterClient.sol";
 import {CCIPReceiver} from "@chainlink/contracts-ccip/contracts/applications/CCIPReceiver.sol";
 import "@chainlink/contracts-ccip/contracts/libraries/Client.sol";
+import "@tokenysolutions/t-rex/contracts/registry/interface/IIdentityRegistry.sol";
+import "@tokenysolutions/t-rex/contracts/registry/interface/ITrustedIssuersRegistry.sol";
+import "@tokenysolutions/t-rex/contracts/registry/interface/IClaimTopicsRegistry.sol";
+import "@tokenysolutions/t-rex/contracts/compliance/legacy/ICompliance.sol";
 import "./IAKSStablecoin.sol";
-import "./IAKSBridge.sol";
+import "./ITokensBridge.sol";
 import "./IKFShares.sol";  // Interface for KFShares contract
 
 contract FractionalizationProxy is AccessControl, CCIPReceiver {
     using ECDSA for bytes32;
+    IRouterClient public i_router;
+    IIdentityRegistry public identityRegistry;
+    ITrustedIssuersRegistry public trustedIssuersRegistry;
+    IClaimTopicsRegistry public claimTopicsRegistry;
+    ICompliance public compliance;
     
     bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
     
@@ -42,7 +51,7 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
     
     // Token contracts
     IAKSStablecoin public aksToken;
-    IAKSBridge public aksBridge;
+    ITokensBridge public tokensBridge;
     address public kfsImplementation;
     address public communityVault;
     
@@ -88,14 +97,14 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
         address _admin,
         address _landRegistryAuthority,
         address _aksToken,
-        address _aksBridge,
+        address _tokensBridge,
         address _kfsImplementation,
         address _communityVault,
         address _ccipRouter
     ) CCIPReceiver(_ccipRouter) {
         landRegistryAuthority = _landRegistryAuthority;
         aksToken = IAKSStablecoin(_aksToken);
-        aksBridge = IAKSBridge(_aksBridge);
+        tokensBridge = ITokensBridge(_tokensBridge);
         kfsImplementation = _kfsImplementation;
         communityVault = _communityVault;
         
@@ -274,7 +283,7 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
             farmTokenId,
             msg.sender,
             shares,
-            currentChainId,
+            uint64(block.chainid),
             destinationChainSelector
         );
     }
@@ -295,7 +304,7 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
             investor,
             shares,
             message.sourceChainId,
-            currentChainId
+            block.chainid
         );
     }
 
@@ -312,7 +321,7 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
             symbol,
             totalShares,
             address(aksToken),
-            address(aksBridge),
+            address(tokensBridge),
             address(this)
         );
         return clone;
@@ -370,6 +379,10 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
         tokenManager = _manager;
     }
     
+    function setTokensBridge(address _tokensBridge) external onlyRole(GOVERNANCE_ROLE) {
+        tokensBridge = ITokensBridge(_tokensBridge);
+    }
+
     function setTREXComponents(
         address _identityRegistry,
         address _trustedIssuersRegistry,

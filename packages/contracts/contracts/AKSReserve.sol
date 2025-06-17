@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.27;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
 import "@chainlink/contracts/src/v0.8/functions/v1_0_0/interfaces/IFunctionsRouter.sol";
@@ -16,7 +16,7 @@ interface IAKS {
     function unpause() external;
 }
 
-contract AKSReserve is Ownable, ReentrancyGuard, ERC20Pausable, FunctionsClient {
+contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
     IAKS public immutable token;
 
     // Chainlink Functions configuration
@@ -77,7 +77,7 @@ contract AKSReserve is Ownable, ReentrancyGuard, ERC20Pausable, FunctionsClient 
         string memory _secretsURL,
         uint64 _subscriptionId,
         address _initialAuditor
-    ) FunctionsClient(_functionsRouter) {
+    ) ERC20("Avalanche Kenya Shilling", "AKS") FunctionsClient(_functionsRouter) {
         require(_token != address(0), "Invalid token address");
         require(_initialAuditor != address(0), "Invalid auditor address");
         require(_functionsRouter != address(0), "Invalid Functions Router address");

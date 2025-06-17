@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "./IAKSStablecoin.sol";
 import "./ITokensBridge.sol";
 
-contract KFShares is ERC20, Ownable {
+contract KFShares is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     IAKSStablecoin public aksToken;
     ITokensBridge public tokensBridge;
     address public proxy;
@@ -14,9 +15,7 @@ contract KFShares is ERC20, Ownable {
     // Pricing
     uint256 public basePricePerShare; // Price per share in AKS
     mapping(address => uint256) public lockedShares;
-    
-    constructor() ERC20("KFShares", "KFS") {}
-    
+
     function initialize(
         string memory name,
         string memory symbol,
@@ -24,9 +23,10 @@ contract KFShares is ERC20, Ownable {
         address _aksToken,
         address _tokensBridge,
         address _proxy
-    ) external onlyOwner {
-        _name = name;
-        _symbol = symbol;
+    ) external initializer {
+        require(totalShares > 0, "Total shares must be greater than zero");
+        __ERC20_init(name, symbol);
+        __Ownable_init(msg.sender);
         aksToken = IAKSStablecoin(_aksToken);
         tokensBridge = ITokensBridge(_tokensBridge);
         proxy = _proxy;
