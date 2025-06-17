@@ -24,7 +24,7 @@ contract AvalancheKenyaShilling is ERC20, ERC20Burnable, ERC20Permit, Ownable, E
     constructor(address initialOwner)
         ERC20("Avalanche Kenya Shilling", "AKS")
         ERC20Permit("Avalanche Kenya Shilling")
-        Ownable(initialOwner)
+        Ownable()
     {
         require(initialOwner != address(0), "Initial owner cannot be zero address");
     }
@@ -38,6 +38,14 @@ contract AvalancheKenyaShilling is ERC20, ERC20Burnable, ERC20Permit, Ownable, E
         require(msg.sender == reserve && reserve != address(0), "Caller is not the authorized reserve");
         _;
     }
+
+    function _beforeTokenTransfer(address from, address to, uint256 amount)
+        internal
+        override(ERC20, ERC20Pausable)
+    {
+        super._beforeTokenTransfer(from, to, amount);
+    }
+
 
     function setBridge(address _bridge) external onlyOwner {
         require(_bridge != address(0), "Bridge cannot be zero address");
@@ -105,9 +113,5 @@ contract AvalancheKenyaShilling is ERC20, ERC20Burnable, ERC20Permit, Ownable, E
         } else {
             super.burnFrom(account, amount);
         }
-    }
-
-    function _update(address from, address to, uint256 value) internal override whenNotPaused {
-        super._update(from, to, value);
     }
 }

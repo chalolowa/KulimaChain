@@ -73,11 +73,11 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
     constructor(
         address _token,
         address _functionsRouter,
-        bytes memory _sourceCode,
+        string memory _sourceCode,
         string memory _secretsURL,
         uint64 _subscriptionId,
         address _initialAuditor
-    ) ERC20("Avalanche Kenya Shilling", "AKS") FunctionsClient(_functionsRouter) {
+    ) FunctionsClient(_functionsRouter) {
         require(_token != address(0), "Invalid token address");
         require(_initialAuditor != address(0), "Invalid auditor address");
         require(_functionsRouter != address(0), "Invalid Functions Router address");
