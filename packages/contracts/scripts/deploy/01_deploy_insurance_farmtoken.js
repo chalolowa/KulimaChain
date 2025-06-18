@@ -8,8 +8,8 @@ const FUJI_CONFIG = {
   chainId: 43113,
   ccipRouter: "0xF694E193200268f9a4868e4Aa017A0118C9a8177",
   avalancheChainSelector: 14767482510784806043,
-  aksTokenAddress: "",
-  aksBridgeAddress: "",
+  aksTokenAddress: "0x6f5db1c1b50acdf4edd4a19d03652dd0ed9530af",
+  aksBridgeAddress: "0x0b1eb42b21156aad19406ed0499ccad92414050c",
   subscriptionId: process.env.CHAINLINK_FUNCTIONS_SUBSCRIPTION_ID,
   functionsRouter: "0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0"
 };

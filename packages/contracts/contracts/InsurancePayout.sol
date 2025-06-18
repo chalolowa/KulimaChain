@@ -21,7 +21,7 @@ contract InsurancePayout is Ownable {
         bytes32 indexed policyId
     );
 
-    constructor(address _aks) Ownable(msg.sender) {
+    constructor(address _aks) {
         aks = IAKSStablecoin(_aks);
     }
 

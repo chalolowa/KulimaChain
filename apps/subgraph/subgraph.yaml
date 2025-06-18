@@ -57,3 +57,40 @@ dataSources:
         - event: Unpaused(address)
           handler: handleUnpaused
       file: ./src/avalanche-kenya-shilling.ts
+
+  - kind: ethereum
+    name: TokensBridge
+    network: fuji
+    source:
+      address: "0x0b1eb42b21156aad19406ed0499ccad92414050c"
+      abi: TokensBridge
+      startBlock: 42052952
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - TokensSent
+        - TokensReceived
+        - DestinationBridgeSet
+        - ChainSupportUpdated
+        - TokenSupportUpdated
+        - TokenMappingSet
+      abis:
+        - name: TokensBridge
+          file: ./abis/TokensBridge.json
+      eventHandlers:
+        - event: TokensSent(uint64 destinationChainSelector,address token,address receiver,uint256 amount,bytes32 messageId)
+          handler: sendTokens
+        - event: TokensReceived(uint64 sourceChainSelector,address token,address sender,uint256 amount,bytes32 messageId)
+          handler: _ccipReceive
+        - event: DestinationBridgeSet(uint64 chainSelector,address bridge)
+          handler: setDestinationBridge
+        - event: ChainSupportUpdated(uint64 chainSelector,bool supported)
+          handler: setSupportedChain
+        - event: TokenSupportUpdated(address token,bool supported)
+          handler: setTokenSupport
+        - event: TokenMappingSet(uint64 chainSelector,address sourceToken,address destToken)
+          handler: setTokenMapping
+      file: ./src/tokens-bridge.ts
+

@@ -16,28 +16,35 @@ interface IAKS {
     function unpause() external;
 }
 
-contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
+contract AKSReserve is ReentrancyGuard, FunctionsClient {
+    using FunctionsRequest for FunctionsRequest.Request;
+    
+    address public owner;
     IAKS public immutable token;
 
     // Chainlink Functions configuration
-    bytes public sourceCode;
-    string public secretsURL;
+    string public sourceCode;
+    bytes public encryptedSecrets;
     uint64 public subscriptionId;
     uint32 public gasLimit = 300000;
-    bytes public encryptedSecrets;
-    bytes public args;
-    uint32 public donVersion = 1;
+    string[] public args;
+    bytes32 public donId;
+    uint256 public lastRequestTimestamp;
+    uint256 public constant REQUEST_INTERVAL = 3600; // 1 hour
 
     // Exchange rate storage
     uint256 public lastExchangeRate; // Stored with 8 decimals
     uint256 public lastUpdatedTimestamp;
     uint256 public constant ORACLE_DECIMALS = 8;
-    uint256 public constant PRICE_STALENESS_THRESHOLD = 3600; // 1 hour
+    uint256 public constant PRICE_STALENESS_THRESHOLD = 7200; // 2 hours
+    uint256 public constant MAX_EXCHANGE_RATE = 200 * 10**ORACLE_DECIMALS; // Max 200 KES per USD
+    uint256 public constant MIN_EXCHANGE_RATE = 50 * 10**ORACLE_DECIMALS;  // Min 50 KES per USD
     
     // Reserve parameters
     uint256 public totalKESReserves;
     uint256 public minCollateralRatio = 100; // 100% minimum
     uint256 public maxSingleMint = 100000 * 10**18; // 100k AKS max per mint
+    bool public paused;
     
     // Multi-signature auditor system
     mapping(address => bool) public auditors;
@@ -51,15 +58,16 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
         mapping(address => bool) confirmed;
         bool executed;
         uint256 timestamp;
+        bool isAddition; // true for addition, false for subtraction
     }
     
     mapping(bytes32 => PendingCollateralUpdate) public pendingUpdates;
     uint256 public constant OPERATION_TIMEOUT = 24 hours;
     
     // Events
-    event CollateralUpdateProposed(bytes32 indexed updateId, uint256 kesAmount);
+    event CollateralUpdateProposed(bytes32 indexed updateId, uint256 kesAmount, bool isAddition);
     event CollateralUpdateConfirmed(bytes32 indexed updateId, address auditor);
-    event CollateralUpdated(uint256 newTotal, uint256 addedAmount);
+    event CollateralUpdated(uint256 newTotal, uint256 changeAmount, bool isAddition);
     event MintRequestFulfilled(address indexed user, uint256 kesAmount, uint256 collateralRatio);
     event BurnRequestExecuted(address indexed user, uint256 aksAmount);
     event AuditorAdded(address indexed auditor);
@@ -69,31 +77,14 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
     event ExchangeRateRequested(bytes32 requestId);
     event ExchangeRateUpdated(uint256 rate);
     event FunctionError(bytes32 requestId, bytes error);
+    event MaxSingleMintUpdated(uint256 oldAmount, uint256 newAmount);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event Paused(address account);
+    event Unpaused(address account);
 
-    constructor(
-        address _token,
-        address _functionsRouter,
-        string memory _sourceCode,
-        string memory _secretsURL,
-        uint64 _subscriptionId,
-        address _initialAuditor
-    ) FunctionsClient(_functionsRouter) {
-        require(_token != address(0), "Invalid token address");
-        require(_initialAuditor != address(0), "Invalid auditor address");
-        require(_functionsRouter != address(0), "Invalid Functions Router address");
-        
-        token = IAKS(_token);
-        
-        // Set up Chainlink Functions
-        sourceCode = _sourceCode;
-        secretsURL = _secretsURL;
-        subscriptionId = _subscriptionId;
-        
-        // Set initial auditor
-        auditors[_initialAuditor] = true;
-        auditorsCount = 1;
-        
-        emit AuditorAdded(_initialAuditor);
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
     }
 
     modifier onlyAuditor() {
@@ -106,42 +97,118 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
         require(collateralRatio() >= minCollateralRatio, "Collateral ratio too low");
     }
 
+    modifier whenNotPaused() {
+        require(!paused, "Paused");
+        _;
+    }
+
+    modifier whenPaused() {
+        require(paused, "Not paused");
+        _;
+    }
+
+    constructor(
+        address _token,
+        address _functionsRouter,
+        string memory _sourceCode,
+        bytes memory _encryptedSecrets,
+        uint64 _subscriptionId,
+        bytes32 _donId,
+        address _initialAuditor
+    ) FunctionsClient(_functionsRouter) {
+        require(_token != address(0), "Invalid token address");
+        require(_initialAuditor != address(0), "Invalid auditor address");
+        require(_functionsRouter != address(0), "Invalid Functions Router address");
+        
+        owner = msg.sender;
+        token = IAKS(_token);
+        
+        // Set up Chainlink Functions
+        sourceCode = _sourceCode;
+        encryptedSecrets = _encryptedSecrets;
+        subscriptionId = _subscriptionId;
+        donId = _donId;
+        
+        // Set initial auditor
+        auditors[_initialAuditor] = true;
+        auditorsCount = 1;
+        
+        emit AuditorAdded(_initialAuditor);
+        emit OwnershipTransferred(address(0), msg.sender);
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "Invalid owner");
+        owner = newOwner;
+        emit OwnershipTransferred(owner, newOwner);
+    }
+
+    function pause() external onlyOwner whenNotPaused {
+        paused = true;
+        token.pause();
+        emit Paused(msg.sender);
+    }
+
+    function unpause() external onlyOwner whenPaused {
+        paused = false;
+        token.unpause();
+        emit Unpaused(msg.sender);
+    }
+
     // ========== Chainlink Functions Implementation ========== //
     
     /// @notice Set Functions configuration
     function setFunctionsConfig(
-        bytes memory _sourceCode,
-        string memory _secretsURL,
-        uint64 _subscriptionId,
+        string memory _sourceCode,
         bytes memory _encryptedSecrets,
-        bytes memory _args,
-        uint32 _gasLimit
+        uint64 _subscriptionId,
+        string[] memory _args,
+        uint32 _gasLimit,
+        bytes32 _donId
     ) external onlyOwner {
+        require(_subscriptionId > 0, "Invalid subscription");
+        require(_gasLimit > 0, "Invalid gas limit");
+        
         sourceCode = _sourceCode;
-        secretsURL = _secretsURL;
-        subscriptionId = _subscriptionId;
         encryptedSecrets = _encryptedSecrets;
+        subscriptionId = _subscriptionId;
         args = _args;
         gasLimit = _gasLimit;
+        donId = _donId;
     }
     
     /// @notice Request latest KES/USD exchange rate
-    function requestExchangeRate() external onlyOwner {
-        bytes32 requestId = _sendRequest(
-            subscriptionId,
-            sourceCode,
-            encryptedSecrets,
-            secretsURL,
-            args,
-            gasLimit,
-            donVersion
+    function requestExchangeRate() external onlyOwner returns (bytes32) {
+        require(
+            block.timestamp >= lastRequestTimestamp + REQUEST_INTERVAL,
+            "Rate request too frequent"
         );
         
+        FunctionsRequest.Request memory req;
+        req.initializeRequestForInlineJavaScript(sourceCode);
+        
+        if (encryptedSecrets.length > 0) {
+            req.addSecretsReference(encryptedSecrets);
+        }
+        
+        if (args.length > 0) {
+            req.setArgs(args);
+        }
+        
+        bytes32 requestId = _sendRequest(
+            req.encodeCBOR(),
+            subscriptionId,
+            gasLimit,
+            donId
+        );
+        
+        lastRequestTimestamp = block.timestamp;
         emit ExchangeRateRequested(requestId);
+        return requestId;
     }
     
     /// @notice Chainlink Functions response callback
-    function _fulfillRequest(
+    function fulfillRequest(
         bytes32 requestId,
         bytes memory response,
         bytes memory err
@@ -151,15 +218,19 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
             return;
         }
         
-        // Response should be a single uint256 value
-        if (response.length == 32) {
-            uint256 rate = abi.decode(response, (uint256));
-            lastExchangeRate = rate;
-            lastUpdatedTimestamp = block.timestamp;
-            emit ExchangeRateUpdated(rate);
-        } else {
-            emit FunctionError(requestId, "Invalid response length");
-        }
+        // Validate response
+        require(response.length == 32, "Invalid response length");
+        uint256 rate = abi.decode(response, (uint256));
+        
+        // Validate exchange rate bounds
+        require(
+            rate >= MIN_EXCHANGE_RATE && rate <= MAX_EXCHANGE_RATE,
+            "Exchange rate out of bounds"
+        );
+        
+        lastExchangeRate = rate;
+        lastUpdatedTimestamp = block.timestamp;
+        emit ExchangeRateUpdated(rate);
     }
     
     /// @notice Get current KES/USD price
@@ -175,7 +246,8 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
     }
 
     // ========== Reserve Management Functions ========== //
-    // Auditor management
+    
+    /// @notice Add a new auditor
     function addAuditor(address _auditor) external onlyOwner {
         require(_auditor != address(0), "Invalid auditor address");
         require(!auditors[_auditor], "Already an auditor");
@@ -186,6 +258,7 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
         emit AuditorAdded(_auditor);
     }
 
+    /// @notice Remove an auditor
     function removeAuditor(address _auditor) external onlyOwner {
         require(auditors[_auditor], "Not an auditor");
         require(auditorsCount > 1, "Cannot remove last auditor");
@@ -196,27 +269,36 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
         emit AuditorRemoved(_auditor);
     }
 
+    /// @notice Set number of auditors required for operations
     function setAuditorsRequired(uint256 _required) external onlyOwner {
         require(_required > 0 && _required <= auditorsCount, "Invalid required count");
         auditorsRequired = _required;
     }
 
-    // Propose collateral update (first step of multi-sig)
-    function proposeCollateralUpdate(uint256 kesAmount) external onlyAuditor returns (bytes32) {
+    /// @notice Propose collateral update (first step of multi-sig)
+    function proposeCollateralUpdate(uint256 kesAmount, bool isAddition) external onlyAuditor returns (bytes32) {
+        require(kesAmount > 0, "Amount must be positive");
+        
+        if (!isAddition) {
+            require(kesAmount <= totalKESReserves, "Cannot remove more than available reserves");
+        }
+        
         bytes32 updateId = keccak256(abi.encodePacked(
             block.timestamp,
             msg.sender,
             kesAmount,
+            isAddition,
             block.number
         ));
         
         PendingCollateralUpdate storage update = pendingUpdates[updateId];
         update.kesAmount = kesAmount;
+        update.isAddition = isAddition;
         update.timestamp = block.timestamp;
         update.confirmed[msg.sender] = true;
         update.confirmations = 1;
         
-        emit CollateralUpdateProposed(updateId, kesAmount);
+        emit CollateralUpdateProposed(updateId, kesAmount, isAddition);
         
         // If only 1 auditor required, execute immediately
         if (auditorsRequired == 1) {
@@ -226,7 +308,7 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
         return updateId;
     }
 
-    // Confirm collateral update (additional auditor signatures)
+    /// @notice Confirm collateral update (additional auditor signatures)
     function confirmCollateralUpdate(bytes32 updateId) external onlyAuditor {
         PendingCollateralUpdate storage update = pendingUpdates[updateId];
         require(update.kesAmount > 0, "Update does not exist");
@@ -245,17 +327,23 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
         }
     }
 
+    /// @notice Internal function to execute collateral update
     function _executeCollateralUpdate(bytes32 updateId) internal {
         PendingCollateralUpdate storage update = pendingUpdates[updateId];
         require(!update.executed, "Already executed");
         
         update.executed = true;
-        totalKESReserves += update.kesAmount;
         
-        emit CollateralUpdated(totalKESReserves, update.kesAmount);
+        if (update.isAddition) {
+            totalKESReserves += update.kesAmount;
+        } else {
+            totalKESReserves -= update.kesAmount;
+        }
+        
+        emit CollateralUpdated(totalKESReserves, update.kesAmount, update.isAddition);
     }
 
-    // Mint AKS when KES deposited (with enhanced checks)
+    /// @notice Mint AKS when KES deposited (with enhanced checks)
     function mintAKS(
         address recipient,
         uint256 kesAmount
@@ -275,55 +363,57 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
         uint256 currentRatio = collateralRatio();
         emit MintRequestFulfilled(recipient, kesAmount, currentRatio);
         
-        // Auto-pause if ratio becomes critical
-        if (currentRatio < minCollateralRatio + 5) { // 5% buffer
+        // Auto-pause if ratio becomes critical (5% buffer)
+        if (currentRatio < minCollateralRatio + 5) {
             _triggerEmergencyPause();
         }
     }
 
-    // Burn AKS and release KES (with validation)
+    /// @notice Burn AKS and release KES (with validation)
     function burnAKS(uint256 aksAmount) external nonReentrant whenNotPaused {
         require(aksAmount > 0, "Amount must be positive");
+        require(
+            token.balanceOf(msg.sender) >= aksAmount,
+            "Insufficient AKS balance"
+        );
         
-        // Verify user has sufficient balance before burning
         token.burnFrom(msg.sender, aksAmount);
-        
         emit BurnRequestExecuted(msg.sender, aksAmount);
-        
-        // Note: Off-chain process handles KES bank transfer
     }
 
-    // Get real-time collateralization ratio with precision
+    /// @notice Get real-time collateralization ratio with precision
     function collateralRatio() public view returns (uint256) {
         uint256 supply = token.totalSupply();
         if (supply == 0) return type(uint256).max; // Infinite ratio when no tokens
         return (totalKESReserves * 100) / supply;
     }
 
-    // Emergency pause with automatic trigger
+    /// @notice Emergency pause triggered by auditors
     function emergencyPause() external onlyAuditor {
         _triggerEmergencyPause();
     }
 
+    /// @notice Internal emergency pause function
     function _triggerEmergencyPause() internal {
         uint256 currentRatio = collateralRatio();
         require(currentRatio < minCollateralRatio, "Ratio is healthy");
         
-        _pause();
+        paused = true;
         token.pause();
-        
+        emit Paused(msg.sender);
         emit EmergencyPaused(currentRatio);
     }
 
-    // Emergency unpause (requires owner)
-    function emergencyUnpause() external onlyOwner {
+    /// @notice Emergency unpause (requires owner)
+    function emergencyUnpause() external onlyOwner whenPaused {
         require(collateralRatio() >= minCollateralRatio, "Collateral ratio still low");
         
-        _unpause();
+        paused = false;
         token.unpause();
+        emit Unpaused(msg.sender);
     }
 
-    // Update minimum collateral ratio (with event)
+    /// @notice Update minimum collateral ratio
     function setMinCollateralRatio(uint256 _ratio) external onlyOwner {
         require(_ratio >= 100, "Ratio cannot be less than 100%");
         require(_ratio <= 200, "Ratio cannot exceed 200%");
@@ -334,35 +424,43 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
         emit CollateralRatioUpdated(oldRatio, _ratio);
     }
 
-    // Set maximum single mint amount
+    /// @notice Set maximum single mint amount
     function setMaxSingleMint(uint256 _amount) external onlyOwner {
         require(_amount > 0, "Amount must be positive");
+        
+        uint256 oldAmount = maxSingleMint;
         maxSingleMint = _amount;
+        
+        emit MaxSingleMintUpdated(oldAmount, _amount);
     }
 
-    // View functions for transparency
+    // ========== View Functions ========== //
+
+    /// @notice Get comprehensive reserve statistics
     function getReserveStats() external view returns (
         uint256 totalReserves,
         uint256 totalSupply,
         uint256 currentRatio,
         uint256 minRatio,
-        bool isPaused
+        bool isPausedState
     ) {
         return (
             totalKESReserves,
             token.totalSupply(),
             collateralRatio(),
             minCollateralRatio,
-            paused()
+            paused
         );
     }
 
+    /// @notice Get pending update details
     function getPendingUpdate(bytes32 updateId) external view returns (
         uint256 kesAmount,
         uint256 confirmations,
         bool executed,
         uint256 timestamp,
-        bool expired
+        bool expired,
+        bool isAddition
     ) {
         PendingCollateralUpdate storage update = pendingUpdates[updateId];
         return (
@@ -370,11 +468,36 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
             update.confirmations,
             update.executed,
             update.timestamp,
-            block.timestamp > update.timestamp + OPERATION_TIMEOUT
+            block.timestamp > update.timestamp + OPERATION_TIMEOUT,
+            update.isAddition
         );
     }
 
-    // Emergency functions for stuck tokens (if any)
+    /// @notice Check if an address is an auditor
+    function isAuditor(address _address) external view returns (bool) {
+        return auditors[_address];
+    }
+
+    /// @notice Get current Functions configuration
+    function getFunctionsConfig() external view returns (
+        string memory,
+        bytes memory,
+        uint64,
+        uint32,
+        bytes32
+    ) {
+        return (
+            sourceCode,
+            encryptedSecrets,
+            subscriptionId,
+            gasLimit,
+            donId
+        );
+    }
+
+    // ========== Emergency Functions ========== //
+
+    /// @notice Emergency withdraw stuck tokens (excluding AKS)
     function emergencyWithdraw(
         address tokenAddress,
         address to,
@@ -382,7 +505,13 @@ contract AKSReserve is Ownable, ReentrancyGuard, Pausable, FunctionsClient {
     ) external onlyOwner {
         require(tokenAddress != address(token), "Cannot withdraw AKS");
         require(to != address(0), "Invalid recipient");
+        require(amount > 0, "Amount must be positive");
         
         IERC20(tokenAddress).transfer(to, amount);
+    }
+
+    /// @notice Check if pending update has been confirmed by specific auditor
+    function hasConfirmed(bytes32 updateId, address auditor) external view returns (bool) {
+        return pendingUpdates[updateId].confirmed[auditor];
     }
 }
