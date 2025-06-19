@@ -1,0 +1,307 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      { "name": "router", "type": "address", "internalType": "address" },
+      {
+        "name": "_payoutManager",
+        "type": "address",
+        "internalType": "address"
+      },
+      { "name": "_aks", "type": "address", "internalType": "address" },
+      { "name": "_subscriptionId", "type": "uint64", "internalType": "uint64" },
+      { "name": "_gasLimit", "type": "uint32", "internalType": "uint32" },
+      { "name": "_donID", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  { "name": "EmptyArgs", "type": "error", "inputs": [] },
+  { "name": "EmptySource", "type": "error", "inputs": [] },
+  { "name": "NoInlineSecrets", "type": "error", "inputs": [] },
+  { "name": "OnlyRouterCanFulfill", "type": "error", "inputs": [] },
+  {
+    "name": "OwnershipTransferRequested",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "OwnershipTransferred",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "PayoutTriggered",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "PolicyCreated",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "farmer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "RequestFulfilled",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "RequestFulfilled",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "requestId",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "response",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      },
+      {
+        "name": "err",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "RequestSent",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "acceptOwnership",
+    "type": "function",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "aks",
+    "type": "function",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IAKSStablecoin"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "name": "createPolicy",
+    "type": "function",
+    "inputs": [
+      { "name": "premium", "type": "uint256", "internalType": "uint256" },
+      {
+        "name": "coverageAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      { "name": "duration", "type": "uint256", "internalType": "uint256" },
+      { "name": "location", "type": "string", "internalType": "string" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "donID",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "evaluatePolicy",
+    "type": "function",
+    "inputs": [
+      { "name": "policyId", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "source", "type": "string", "internalType": "string" },
+      { "name": "args", "type": "string[]", "internalType": "string[]" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "gasLimit",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint32", "internalType": "uint32" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "handleOracleFulfillment",
+    "type": "function",
+    "inputs": [
+      { "name": "requestId", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "response", "type": "bytes", "internalType": "bytes" },
+      { "name": "err", "type": "bytes", "internalType": "bytes" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "owner",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "payoutManager",
+    "type": "function",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract InsurancePayout"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "name": "pendingRequests",
+    "type": "function",
+    "inputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "policies",
+    "type": "function",
+    "inputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+    "outputs": [
+      { "name": "farmer", "type": "address", "internalType": "address" },
+      { "name": "premium", "type": "uint256", "internalType": "uint256" },
+      {
+        "name": "coverageAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      { "name": "startDate", "type": "uint256", "internalType": "uint256" },
+      { "name": "endDate", "type": "uint256", "internalType": "uint256" },
+      { "name": "location", "type": "string", "internalType": "string" },
+      { "name": "isActive", "type": "bool", "internalType": "bool" },
+      { "name": "claimed", "type": "bool", "internalType": "bool" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "name": "requestToPolicy",
+    "type": "function",
+    "inputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "subscriptionId",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint64", "internalType": "uint64" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "transferOwnership",
+    "type": "function",
+    "inputs": [{ "name": "to", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "updatePayoutManager",
+    "type": "function",
+    "inputs": [
+      { "name": "_payoutManager", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "withdrawAKS",
+    "type": "function",
+    "inputs": [
+      { "name": "recipient", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+]

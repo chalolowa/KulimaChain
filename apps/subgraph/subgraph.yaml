@@ -70,27 +70,165 @@ dataSources:
       apiVersion: 0.0.9
       language: wasm/assemblyscript
       entities:
-        - TokensSent
-        - TokensReceived
-        - DestinationBridgeSet
         - ChainSupportUpdated
-        - TokenSupportUpdated
+        - DestinationBridgeSet
+        - OwnershipTransferred
         - TokenMappingSet
+        - TokenSupportUpdated
+        - TokensReceived
+        - TokensSent
       abis:
         - name: TokensBridge
           file: ./abis/TokensBridge.json
       eventHandlers:
-        - event: TokensSent(uint64 destinationChainSelector,address token,address receiver,uint256 amount,bytes32 messageId)
-          handler: sendTokens
-        - event: TokensReceived(uint64 sourceChainSelector,address token,address sender,uint256 amount,bytes32 messageId)
-          handler: _ccipReceive
-        - event: DestinationBridgeSet(uint64 chainSelector,address bridge)
-          handler: setDestinationBridge
-        - event: ChainSupportUpdated(uint64 chainSelector,bool supported)
-          handler: setSupportedChain
-        - event: TokenSupportUpdated(address token,bool supported)
-          handler: setTokenSupport
-        - event: TokenMappingSet(uint64 chainSelector,address sourceToken,address destToken)
-          handler: setTokenMapping
+        - event: ChainSupportUpdated(uint64,bool)
+          handler: handleChainSupportUpdated
+        - event: DestinationBridgeSet(uint64,address)
+          handler: handleDestinationBridgeSet
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: TokenMappingSet(uint64,address,address)
+          handler: handleTokenMappingSet
+        - event: TokenSupportUpdated(address,bool)
+          handler: handleTokenSupportUpdated
+        - event: TokensReceived(uint64,address,address,uint256,bytes32)
+          handler: handleTokensReceived
+        - event: TokensSent(uint64,address,address,uint256,bytes32)
+          handler: handleTokensSent
       file: ./src/tokens-bridge.ts
 
+  - kind: ethereum
+    name: AKSReserve
+    network: fuji
+    source:
+      address: "0x597e5d45049a43296f94d86798f6d4329f0a2156"
+      abi: AKSReserve
+      startBlock: 42070853
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - AuditorAdded
+        - AuditorRemoved
+        - BurnRequestExecuted
+        - CollateralRatioUpdated
+        - CollateralUpdateConfirmed
+        - CollateralUpdateProposed
+        - CollateralUpdated
+        - EmergencyPaused
+        - ExchangeRateRequested
+        - ExchangeRateUpdated
+        - FunctionError
+        - MaxSingleMintUpdated
+        - MintRequestFulfilled
+        - OwnershipTransferred
+        - Paused
+        - RequestFulfilled
+        - RequestSent
+        - Unpaused
+      abis:
+        - name: AKSReserve
+          file: ./abis/AKSReserve.json
+      eventHandlers:
+        - event: AuditorAdded(indexed address)
+          handler: handleAuditorAdded
+        - event: AuditorRemoved(indexed address)
+          handler: handleAuditorRemoved
+        - event: BurnRequestExecuted(indexed address,uint256)
+          handler: handleBurnRequestExecuted
+        - event: CollateralRatioUpdated(uint256,uint256)
+          handler: handleCollateralRatioUpdated
+        - event: CollateralUpdateConfirmed(indexed bytes32,address)
+          handler: handleCollateralUpdateConfirmed
+        - event: CollateralUpdateProposed(indexed bytes32,uint256,bool)
+          handler: handleCollateralUpdateProposed
+        - event: CollateralUpdated(uint256,uint256,bool)
+          handler: handleCollateralUpdated
+        - event: EmergencyPaused(uint256)
+          handler: handleEmergencyPaused
+        - event: ExchangeRateRequested(bytes32)
+          handler: handleExchangeRateRequested
+        - event: ExchangeRateUpdated(uint256)
+          handler: handleExchangeRateUpdated
+        - event: FunctionError(bytes32,bytes)
+          handler: handleFunctionError
+        - event: MaxSingleMintUpdated(uint256,uint256)
+          handler: handleMaxSingleMintUpdated
+        - event: MintRequestFulfilled(indexed address,uint256,uint256)
+          handler: handleMintRequestFulfilled
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: Paused(address)
+          handler: handlePaused
+        - event: RequestFulfilled(indexed bytes32)
+          handler: handleRequestFulfilled
+        - event: RequestSent(indexed bytes32)
+          handler: handleRequestSent
+        - event: Unpaused(address)
+          handler: handleUnpaused
+      file: ./src/aks-reserve.ts
+
+  - kind: ethereum
+    name: InsurancePayout
+    network: fuji
+    source:
+      address: "0x0f062f2eb55cdfe809daf4fb9e4b6da5c10a9eb9"
+      abi: InsurancePayout
+      startBlock: 42067317
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - FarmerPayout
+        - OwnershipTransferred
+      abis:
+        - name: InsurancePayout
+          file: ./abis/InsurancePayout.json
+      eventHandlers:
+        - event: FarmerPayout(indexed address,uint256,indexed bytes32)
+          handler: handleFarmerPayout
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+      file: ./src/insurance-payout.ts
+
+  - kind: ethereum
+    name: InsuranceFund
+    network: fuji
+    source:
+      address: "0x8615699f14DF59389c64AA36c6B9655a111dDe6D"
+      abi: InsuranceFund
+      startBlock: 42067866
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - OwnershipTransferRequested
+        - OwnershipTransferred
+        - PayoutTriggered
+        - PolicyCreated
+        - RequestFulfilled
+        - RequestFulfilled1
+        - RequestSent
+      abis:
+        - name: InsuranceFund
+          file: ./abis/InsuranceFund.json
+      eventHandlers:
+        - event: OwnershipTransferRequested(indexed address,indexed address)
+          handler: handleOwnershipTransferRequested
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: PayoutTriggered(bytes32,uint256)
+          handler: handlePayoutTriggered
+        - event: PolicyCreated(bytes32,indexed address)
+          handler: handlePolicyCreated
+        - event: RequestFulfilled(indexed bytes32)
+          handler: handleRequestFulfilled
+        - event: RequestFulfilled(bytes32,bytes,bytes)
+          handler: handleRequestFulfilled1
+        - event: RequestSent(indexed bytes32)
+          handler: handleRequestSent
+      file: ./src/insurance-fund.ts
+      
