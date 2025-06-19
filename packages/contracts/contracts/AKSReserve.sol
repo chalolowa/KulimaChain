@@ -11,6 +11,7 @@ import "@chainlink/contracts/src/v0.8/functions/v1_0_0/interfaces/IFunctionsRout
 interface IAKS {
     function mint(address to, uint256 amount) external;
     function burnFrom(address from, uint256 amount) external;
+    function balanceOf(address account) external view returns (uint256);
     function totalSupply() external view returns (uint256);
     function pause() external;
     function unpause() external;
@@ -23,11 +24,20 @@ contract AKSReserve is ReentrancyGuard, FunctionsClient {
     IAKS public immutable token;
 
     // Chainlink Functions configuration
-    string public sourceCode;
-    bytes public encryptedSecrets;
+    string public constant SOURCE_CODE =
+        "const exchangeRateApiKey = secrets.EXCHANGE_RATE_API_KEY; " 
+        "const apiResponse = await Functions.makeHttpRequest({ "
+        "url: 'https://v6.exchangerate-api.com/v6/' + exchangeRateApiKey + '/latest/USD' "
+        "}); "
+        "if (!apiResponse.error) { "
+        "  const kesRate = apiResponse.data.conversion_rates.KES; "
+        "  return Math.round(kesRate * 1e8); "
+        "} else { "
+        "  throw Error('Request failed'); "
+    "}";
+
     uint64 public subscriptionId;
     uint32 public gasLimit = 300000;
-    string[] public args;
     bytes32 public donId;
     uint256 public lastRequestTimestamp;
     uint256 public constant REQUEST_INTERVAL = 3600; // 1 hour
@@ -110,8 +120,6 @@ contract AKSReserve is ReentrancyGuard, FunctionsClient {
     constructor(
         address _token,
         address _functionsRouter,
-        string memory _sourceCode,
-        bytes memory _encryptedSecrets,
         uint64 _subscriptionId,
         bytes32 _donId,
         address _initialAuditor
@@ -124,8 +132,6 @@ contract AKSReserve is ReentrancyGuard, FunctionsClient {
         token = IAKS(_token);
         
         // Set up Chainlink Functions
-        sourceCode = _sourceCode;
-        encryptedSecrets = _encryptedSecrets;
         subscriptionId = _subscriptionId;
         donId = _donId;
         
@@ -159,20 +165,14 @@ contract AKSReserve is ReentrancyGuard, FunctionsClient {
     
     /// @notice Set Functions configuration
     function setFunctionsConfig(
-        string memory _sourceCode,
-        bytes memory _encryptedSecrets,
         uint64 _subscriptionId,
-        string[] memory _args,
         uint32 _gasLimit,
         bytes32 _donId
     ) external onlyOwner {
         require(_subscriptionId > 0, "Invalid subscription");
         require(_gasLimit > 0, "Invalid gas limit");
         
-        sourceCode = _sourceCode;
-        encryptedSecrets = _encryptedSecrets;
         subscriptionId = _subscriptionId;
-        args = _args;
         gasLimit = _gasLimit;
         donId = _donId;
     }
@@ -185,15 +185,7 @@ contract AKSReserve is ReentrancyGuard, FunctionsClient {
         );
         
         FunctionsRequest.Request memory req;
-        req.initializeRequestForInlineJavaScript(sourceCode);
-        
-        if (encryptedSecrets.length > 0) {
-            req.addSecretsReference(encryptedSecrets);
-        }
-        
-        if (args.length > 0) {
-            req.setArgs(args);
-        }
+        req.initializeRequestForInlineJavaScript(SOURCE_CODE);
         
         bytes32 requestId = _sendRequest(
             req.encodeCBOR(),
@@ -480,15 +472,11 @@ contract AKSReserve is ReentrancyGuard, FunctionsClient {
 
     /// @notice Get current Functions configuration
     function getFunctionsConfig() external view returns (
-        string memory,
-        bytes memory,
         uint64,
         uint32,
         bytes32
     ) {
         return (
-            sourceCode,
-            encryptedSecrets,
             subscriptionId,
             gasLimit,
             donId
