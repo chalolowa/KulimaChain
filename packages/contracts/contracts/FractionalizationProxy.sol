@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -7,10 +7,10 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@chainlink/contracts-ccip/contracts/interfaces/IRouterClient.sol";
 import {CCIPReceiver} from "@chainlink/contracts-ccip/contracts/applications/CCIPReceiver.sol";
 import "@chainlink/contracts-ccip/contracts/libraries/Client.sol";
-import "@tokenysolutions/t-rex/contracts/registry/interface/IIdentityRegistry.sol";
-import "@tokenysolutions/t-rex/contracts/registry/interface/ITrustedIssuersRegistry.sol";
-import "@tokenysolutions/t-rex/contracts/registry/interface/IClaimTopicsRegistry.sol";
-import "@tokenysolutions/t-rex/contracts/compliance/legacy/ICompliance.sol";
+import "./IIdentityRegistry.sol";
+import "./ITrustedIssuersRegistry.sol";
+import "./IClaimTopicsRegistry.sol";
+import "./IModularCompliance.sol";
 import "./IAKSStablecoin.sol";
 import "./ITokensBridge.sol";
 import "./IKFShares.sol";  // Interface for KFShares contract
@@ -21,7 +21,7 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
     IIdentityRegistry public identityRegistry;
     ITrustedIssuersRegistry public trustedIssuersRegistry;
     IClaimTopicsRegistry public claimTopicsRegistry;
-    ICompliance public compliance;
+    IModularCompliance public compliance;
     
     bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
     
@@ -303,8 +303,8 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
             farmTokenId,
             investor,
             shares,
-            message.sourceChainId,
-            block.chainid
+            message.sourceChainSelector,
+            uint64(block.chainid)
         );
     }
 
@@ -374,10 +374,6 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
     function setAKSToken(address _aksToken) external onlyRole(GOVERNANCE_ROLE) {
         aksToken = IAKSStablecoin(_aksToken);
     }
-
-    function setTokenManager(address _manager) external onlyRole(GOVERNANCE_ROLE) {
-        tokenManager = _manager;
-    }
     
     function setTokensBridge(address _tokensBridge) external onlyRole(GOVERNANCE_ROLE) {
         tokensBridge = ITokensBridge(_tokensBridge);
@@ -392,6 +388,6 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
         identityRegistry = IIdentityRegistry(_identityRegistry);
         trustedIssuersRegistry = ITrustedIssuersRegistry(_trustedIssuersRegistry);
         claimTopicsRegistry = IClaimTopicsRegistry(_claimTopicsRegistry);
-        compliance = ICompliance(_compliance);
+        compliance = IModularCompliance(_compliance);
     }
 }

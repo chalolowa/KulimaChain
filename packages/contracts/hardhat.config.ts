@@ -66,6 +66,44 @@ const config: HardhatUserConfig = {
         }
       }
     ],
+    overrides: {
+      "node_modules/@tokenysolutions/t-rex/**/*.sol": {
+        version: "0.8.17",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        }
+      },
+      "node_modules/@chainlink/contracts/**/*.sol": {
+        version: "0.8.19",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        }
+      },
+      "node_modules/@chainlink/contracts-ccip/contracts/**/*.sol": {
+        version: "0.8.4",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        }
+      },
+      "node_modules/@onchain-id/solidity/**/*.sol": {
+        version: "0.8.17",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        }
+      }
+    }
   },
   defaultNetwork: "fuji",
   networks: {
