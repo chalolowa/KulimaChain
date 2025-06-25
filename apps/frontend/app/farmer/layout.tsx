@@ -14,7 +14,7 @@ export default function FarmerLayout({
       <main className="flex-1 p-4 md:p-6 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">Farmer Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Your soil, Your shares, Your sovereignity!!</h1>
             <div className="flex items-center space-x-2">
               <span className="hidden sm:inline text-sm text-gray-600">Welcome, Farmer</span>
               <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
