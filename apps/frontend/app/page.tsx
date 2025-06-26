@@ -5,8 +5,23 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import background from "@/assets/farmland-bg.jpg";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import UserTypeModal from "@/components/auth/UserTypeModal";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const { user, userType } = useAuth();
+  const router = useRouter();
+
+  // Redirect if logged in and userType is set
+  useEffect(() => {
+    if (user && userType) {
+      router.replace("/redirect");
+    }
+  }, [user, userType, router]);
+
   return (
     <div className="relative min-h-screen flex items-center justify-center">
       {/* Background Image with Parallax Effect */}
@@ -46,11 +61,13 @@ export default function Home() {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="flex flex-col sm:flex-row justify-center gap-4"
         >
-          <Link href="/signup">
-            <Button className="px-8 py-6 text-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg transform transition hover:-translate-y-1">
-              Get Started
-            </Button>
-          </Link>
+
+          <Button className="px-8 py-6 text-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg transform transition hover:-translate-y-1"
+          onClick={() => setAuthModalOpen(true)}
+          >
+            Get Started
+          </Button>
+
           <Link href="/about">
             <Button variant="outline" className="px-8 py-6 text-lg bg-white/10 backdrop-blur-sm text-white border-white/30 hover:bg-white/20 hover:text-white transition-all">
               How It Works
@@ -74,6 +91,10 @@ export default function Home() {
           ></motion.div>
         </div>
       </motion.div>
+
+      {/* User Type Modal */}
+      <UserTypeModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+      
     </div>
   );
 }
