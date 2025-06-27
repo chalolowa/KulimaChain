@@ -12,9 +12,11 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "../ui/button";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SidebarContent() {
   const pathname = usePathname();
+  const { logout } = useAuth();
   const navItems = [
     { href: "/farmer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/farmer/tokenization", icon: LandPlot, label: "Tokenization" },
@@ -40,7 +42,7 @@ export default function SidebarContent() {
       </nav>
 
       <div className="mt-auto pt-4 border-t">
-        <Button variant="ghost" className="w-full justify-start">
+        <Button variant="ghost" className="w-full justify-start" onClick={logout}>
           <LogOut className="mr-3 h-4 w-4" />
           Logout
         </Button>

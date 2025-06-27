@@ -9,7 +9,6 @@ import { Wallet } from "ethers";
 import { DID } from "dids";
 import { fromString } from "uint8arrays/from-string";
 import { Ed25519Provider } from "key-did-provider-ed25519";
-import { OpenloginAdapter } from "@web3auth/openlogin-adapter";
 import { useRouter } from "next/navigation";
 
 interface AuthContextType {
@@ -26,6 +25,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [userType, setUserType] = useState<"farmer" | "investor" | null>(null);
   const [ceramicClient, setCeramicClient] = useState<CeramicClient | null>(null);
@@ -174,6 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setCeramicClient(null);
     setSmartAccount(null);
     localStorage.removeItem("userType");
+    router.replace("/");
   }, [web3auth]);
 
   return (

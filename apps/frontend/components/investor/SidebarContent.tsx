@@ -4,9 +4,11 @@ import { LayoutDashboard, Landmark, Handshake, Coins, User, BarChart, Settings, 
 import { usePathname } from "next/navigation";
 import { Button } from "../ui/button";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SidebarContent() {
   const pathname = usePathname();
+  const { logout } = useAuth();
   const navItems = [
     { href: "/investor/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/investor/marketplace", icon: Landmark, label: "Marketplace" },
@@ -32,7 +34,7 @@ export default function SidebarContent() {
       </nav>
       
       <div className="mt-auto pt-4 border-t">
-        <Button variant="ghost" className="w-full justify-start">
+        <Button variant="ghost" className="w-full justify-start" onClick={logout}>
           <LogOut className="mr-3 h-4 w-4" />
           Logout
         </Button>

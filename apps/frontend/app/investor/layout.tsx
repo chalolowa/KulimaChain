@@ -1,5 +1,6 @@
 import MobileNav from "@/components/investor/MobileNav";
 import Sidebar from "@/components/investor/Sidebar";
+import { WalletBadge } from "@/hooks/useWallet";
 
 export default function InvestorLayout({
   children,
