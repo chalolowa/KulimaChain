@@ -7,8 +7,61 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/context/AuthContext";
+import { grantAccess, uploadFiles, UploadResult } from "@/lib/lighthouse";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function TokenizationPage() {
+  const { user, smartAccount } = useAuth();
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadStatus, setUploadStatus] = useState<UploadResult>({});
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleUpload = async () => {
+    if (!user || !smartAccount || selectedFiles.length === 0) return;
+    
+    setIsUploading(true);
+    
+    try {
+      const wallet_address = await smartAccount.getAccountAddress();
+      // Upload files
+      const results = await uploadFiles(selectedFiles, wallet_address);
+      setUploadStatus(results);
+
+      // Get successful uploads
+      const successfulCids = Object.entries(results)
+        .filter(([_, status]) => status.status === 'pending')
+        .map(([_, status]) => status.cid);
+
+      // Grant access to verifiers
+      if (successfulCids.length > 0) {
+        await grantAccess(successfulCids, '0xVerifierAddress1');
+        await grantAccess(successfulCids, '0xVerifierAddress2');
+      }
+
+      // Submit tokenization request
+      await submitTokenizationRequest();
+    } catch (error) {
+      console.error('Upload process failed:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const submitTokenizationRequest = async () => {
+    toast.promise(
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+      {
+        loading: 'Submitting verification request...',
+        success: () => {
+          return 'Verification request submitted! Authorities will review your documents';
+        },
+        error: 'Failed to submit request'
+      }
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="create">
@@ -51,7 +104,7 @@ export default function TokenizationPage() {
                     accept=".pdf,.jpg,.png,.doc" 
                     maxFiles={5} 
                     maxSize={10 * 1024 * 1024} 
-                    onFilesSelected={() => {}} 
+                    onFilesSelected={() => {setSelectedFiles}} 
                   />
                 </div>
                 
@@ -73,9 +126,17 @@ export default function TokenizationPage() {
                   />
                 </div>
                 
-                <Button className="mt-4 w-full sm:w-auto">
+                <Button className="mt-4 w-full sm:w-auto" onClick={handleUpload}>
                   Submit for Verification
                 </Button>
+                {/* Display upload status */}
+              {Object.entries(uploadStatus).map(([fileName, status]) => (
+                <div key={fileName}>
+                  {fileName}: {status.status === 'pending' 
+                    ? `Uploaded (CID: ${status.cid.slice(0, 12)}...)` 
+                    : 'Failed'}
+                </div>
+              ))}
               </form>
             </CardContent>
           </Card>

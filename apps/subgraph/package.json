@@ -2,6 +2,7 @@
   "name": "kulima-chain",
   "license": "MIT",
   "scripts": {
+    "auth": "graph auth xxx",
     "codegen": "graph codegen",
     "build": "graph build",
     "deploy": "graph deploy --node https://api.studio.thegraph.com/deploy/ kulima-chain",
