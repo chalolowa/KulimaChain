@@ -62,9 +62,9 @@ dataSources:
     name: TokensBridge
     network: fuji
     source:
-      address: "0x0b1eb42b21156aad19406ed0499ccad92414050c"
+      address: "0x38C082d6948af8272981E760E99F0De52F34FD6f"
       abi: TokensBridge
-      startBlock: 42052952
+      startBlock: 42572259
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -231,4 +231,156 @@ dataSources:
         - event: RequestSent(indexed bytes32)
           handler: handleRequestSent
       file: ./src/insurance-fund.ts
-      
+
+  - kind: ethereum
+    name: FarmToken
+    network: fuji
+    source:
+      address: "0x8DB4a30E956f7565e2764b70c8AFe74d847CB229"
+      abi: FarmToken
+      startBlock: 42570171
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - ApprovalForAll
+        - FarmDeactivated
+        - FarmPriceProposed
+        - FarmReclaimed
+        - FarmTokenized
+        - FarmValuationUpdated
+        - Fractionalized
+        - GovernmentRegistryUpdated
+        - Paused
+        - RoleAdminChanged
+        - RoleGranted
+        - RoleRevoked
+        - TransferBatch
+        - TransferSingle
+        - URI
+        - Unpaused
+      abis:
+        - name: FarmToken
+          file: ./abis/FarmToken.json
+      eventHandlers:
+        - event: ApprovalForAll(indexed address,indexed address,bool)
+          handler: handleApprovalForAll
+        - event: FarmDeactivated(indexed uint256,string)
+          handler: handleFarmDeactivated
+        - event: FarmPriceProposed(indexed uint256,uint256)
+          handler: handleFarmPriceProposed
+        - event: FarmReclaimed(indexed uint256,indexed address)
+          handler: handleFarmReclaimed
+        - event: FarmTokenized(indexed uint256,indexed address,uint256,string,indexed bytes32,address)
+          handler: handleFarmTokenized
+        - event: FarmValuationUpdated(indexed uint256,uint256,indexed address)
+          handler: handleFarmValuationUpdated
+        - event: Fractionalized(indexed uint256,indexed address)
+          handler: handleFractionalized
+        - event: GovernmentRegistryUpdated(indexed address)
+          handler: handleGovernmentRegistryUpdated
+        - event: Paused(address)
+          handler: handlePaused
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleRevoked
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: URI(string,indexed uint256)
+          handler: handleURI
+        - event: Unpaused(address)
+          handler: handleUnpaused
+      file: ./src/farm-token.ts
+
+  - kind: ethereum
+    name: GovernmentRegistry
+    network: fuji
+    source:
+      address: "0x12d310dca3fbdba91eb3d6300d6b0c231185abfe"
+      abi: GovernmentRegistry
+      startBlock: 42341623
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - AuthorityAdded
+        - AuthorityDeactivated
+        - AuthorityUpdated
+        - DocumentVerified
+        - RoleAdminChanged
+        - RoleGranted
+        - RoleRevoked
+        - VerificationRevoked
+      abis:
+        - name: GovernmentRegistry
+          file: ./abis/GovernmentRegistry.json
+      eventHandlers:
+        - event: AuthorityAdded(indexed address,string,string)
+          handler: handleAuthorityAdded
+        - event: AuthorityDeactivated(indexed address)
+          handler: handleAuthorityDeactivated
+        - event: AuthorityUpdated(indexed address,string)
+          handler: handleAuthorityUpdated
+        - event: DocumentVerified(indexed bytes32,indexed address,bytes32,bytes32)
+          handler: handleDocumentVerified
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleRevoked
+        - event: VerificationRevoked(indexed bytes32,indexed address)
+          handler: handleVerificationRevoked
+      file: ./src/government-registry.ts
+
+  - kind: ethereum
+    name: KFShares
+    network: fuji
+    source:
+      address: "0x5ddfdb8fc0761b6e835ef49537a2c6b1c53389d5"
+      abi: KFShares
+      startBlock: 42570736
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - AdminChanged
+        - Approval
+        - BeaconUpgraded
+        - Initialized
+        - RoleAdminChanged
+        - RoleGranted
+        - RoleRevoked
+        - Transfer
+        - Upgraded
+      abis:
+        - name: KFShares
+          file: ./abis/KFShares.json
+      eventHandlers:
+        - event: AdminChanged(address,address)
+          handler: handleAdminChanged
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleApproval
+        - event: BeaconUpgraded(indexed address)
+          handler: handleBeaconUpgraded
+        - event: Initialized(uint8)
+          handler: handleInitialized
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleRevoked
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+        - event: Upgraded(indexed address)
+          handler: handleUpgraded
+      file: ./src/kf-shares.ts

@@ -102,6 +102,7 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
         address _communityVault,
         address _ccipRouter
     ) CCIPReceiver(_ccipRouter) {
+        i_router = IRouterClient(_ccipRouter);
         landRegistryAuthority = _landRegistryAuthority;
         aksToken = IAKSStablecoin(_aksToken);
         tokensBridge = ITokensBridge(_tokensBridge);
@@ -110,6 +111,10 @@ contract FractionalizationProxy is AccessControl, CCIPReceiver {
         
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(GOVERNANCE_ROLE, _admin);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControl, CCIPReceiver) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 
     /// @notice Fractionalize a farm token into KFS shares

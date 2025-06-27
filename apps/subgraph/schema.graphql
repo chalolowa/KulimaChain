@@ -45,6 +45,8 @@ type EIP712DomainChanged @entity(immutable: true) {
 
 type OwnershipTransferred @entity(immutable: true) {
   id: Bytes!
+  from: Bytes! # address
+  to: Bytes! # address
   previousOwner: Bytes! # address
   newOwner: Bytes! # address
   blockNumber: BigInt!
