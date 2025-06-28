@@ -1,4 +1,4 @@
-import { CheckCircle2, FileDigit, FileText, UploadCloud, File as FileIcon } from "lucide-react";
+import { CheckCircle2, FileDigit, FileText, UploadCloud, File as FileIcon, X } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "../ui/button";
@@ -49,7 +49,7 @@ export function FileUpload({
     // Handle rejected files
     if (fileRejections.length > 0) {
       const newErrors = fileRejections.map(({ file, errors }) => {
-        const errorMessages = errors.map(e => {
+        const errorMessages = errors.map((e: { code: string; message: string }) => {
           if (e.code === "file-too-large") 
             return `File too large (max ${maxSize}MB)`;
           if (e.code === "file-invalid-type") 
