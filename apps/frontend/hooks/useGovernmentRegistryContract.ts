@@ -12,8 +12,8 @@ export function useGovernmentRegistryContract() {
     if ( !smartAccount?.getAccountAddress()) return null;
     
     try {
-      // Get the signer from the smart account
-      const signer = smartAccount.getSigner();
+      // Get the provider from the smart account
+      const provider = smartAccount.rpcProvider;
 
       return new ethers.Contract(
         GOVERNMENT_REGISTRY_ADDRESS,
