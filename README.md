@@ -1,6 +1,6 @@
 # KulimaChain
 
-KulimaChain is a decentralized insurance fund and fractional farmland ownership platform for Africa and **is built using Chainlink’s backend infrastructure and a Next.js frontend**. Here’s a breakdown of how this dapp addresses key challenges and enables implementation:
+KulimaChain is a decentralized insurance fund and fractional farmland ownership platform for Africa and **is built utilizing Chainlink’s backend infrastructure and a Next.js frontend**. Here’s a breakdown of how this dapp addresses key challenges and enables implementation:
 
 ---
 
@@ -8,13 +8,13 @@ KulimaChain is a decentralized insurance fund and fractional farmland ownership 
 #### **Backend (Chainlink)**  
 Chainlink’s decentralized oracle network and modular services provide critical infrastructure for reliability and real-world data integration:  
 1. **Parametric Insurance Triggers**  
-   - Use **Chainlink Oracles** to fetch weather data (e.g., rainfall, temperature) from APIs like NOAA, Tomorrow.io, or IoT sensors. This enables automated payouts for crop insurance (e.g., drought triggers).  
+   - Use **Chainlink Oracles** to fetch weather data (e.g., rainfall, temperature) from APIs openWeather and Tomorrow.io. This enables automated payouts for crop insurance ( drought triggers).  
 
-2. **Land Registry Verification**  
-   - Chainlink’s **Proof of Reserve** can validate land ownership records from fragmented African registries, enabling trustless fractionalization of farmland.  
+2. **Land Registry Verification**  ]
+   - Easy government onboarding to validate land ownership records for African registries, enabling trustless fractionalization of farmland.  
 
 3. **Stablecoin Integration**  
-   - Use **Chainlink CCIP** (Cross-Chain Interoperability Protocol) to facilitate cross-border payments and connect stablecoins to DeFi protocols.  
+   - Use **Chainlink CCIP** (Cross-Chain Interoperability Protocol) to facilitate cross-border payments and connect AKS stablecoin to DeFi protocols.  
 
 4. **Fraud Prevention**  
    - Leverage **Chainlink VRF** (Verifiable Random Function) for transparent claim verification and fraud detection in insurance pools.  
@@ -27,22 +27,18 @@ Next.js provides a scalable, user-friendly interface optimized for low-bandwidth
    - Built lightweight Progressive Web Apps (PWAs) with Next.js to ensure accessibility on low-end smartphones, even with intermittent internet.  
 
 2. **Wallet Integration**  
-   - Used **wagmi** or **Web3Modal** libraries to connect MetaMask, Trust Wallet, and local mobile money apps ( M-Pesa) for premium payments and token purchases.  
+   - Used **Biconomy** or **Web3Auth** libraries to connect MetaMask, create smart wallet and enable Google-signin authentication for premium payments and token purchases.  
 
 3. **Localization**  
-   - Implement multilingual support (e.g., Swahili, Yoruba) and region-specific UI/UX patterns ( SMS-based 2FA for farmers without smartphones).  
-
-4. **Analytics & Education**  
-   - Embed tutorials and dashboards to explain complex concepts (e.g., parametric insurance) using Next.js’s static site generation (SSG) for fast loading.  
+   - Implement multilingual support (e.g., Swahili, Yoruba) and region-specific UI/UX patterns ( SMS-based 2FA for farmers without smartphones).    
 
 ---
 
 ### **Challenges to Address**  
 | **Challenge**                 | **Solution with Chainlink + Next.js**                                                                 |  
 |--------------------------------|-------------------------------------------------------------------------------------------------------|  
-| **Unreliable Internet**        | Offline-first Next.js caching + Chainlink’s decentralized oracle redundancy for data availability.     |  
-| **Low Digital Literacy**       | Gamified onboarding (e.g., NFT achievement badges) and voice-guided tutorials in local languages.     |  
-| **Regulatory Compliance**      | Chainlink’s Proof of Reserve + KYC integration via Next.js forms (e.g., Fractal ID for African users).|  
+| **Unreliable Internet**        | Offline-first Next.js caching + Chainlink’s decentralized oracle redundancy for data availability.     |    
+| **Regulatory Compliance**      | T-REX implementation for KYC/AML.|  
 | **High Gas Fees**              | Deploy on Chainlink-supported L2s (Avalanche Fuji) for sub-$0.01 transactions.                   |  
 
 ---
@@ -59,7 +55,7 @@ Next.js provides a scalable, user-friendly interface optimized for low-bandwidth
 ---
 
 ### **Tech Stack Applied**  
-- **Blockchain**: Ethereum L2 Avalanche for scalability.  
+- **Blockchain**: Ethereum Avalanche for scalability.  
 - **Oracles**: Chainlink Data Feeds + Functions for off-chain computation.  
 - **Frontend**: Next.js + Tailwind CSS + The Graph (for querying on-chain data).  
 - **Mobile Integration**: Partnered with Africa’s Talking for SMS/USSD gateways.  
