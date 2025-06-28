@@ -1,13 +1,10 @@
-# Sample Hardhat Project
+The contracts implementation include:
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
-
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.ts
-```
+1. Proxy Token System
+    - ERC-1155 NFTs represent physical farms
+    - Proxy contract issues ERC-3643 tokens against locked NFTs
+    - Automatic redemption when all fractions returned
+  
+2. Weather based crop insurance
+3. Avalanche Kenya Shilling stable coin ecosystem
+4. T-REX implementation interfaces
