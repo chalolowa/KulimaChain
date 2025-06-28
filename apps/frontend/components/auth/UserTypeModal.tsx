@@ -26,14 +26,6 @@ export default function UserTypeModal({open, onOpenChange}: UserTypeModalProps) 
           <DialogTitle className="text-center text-xl font-bold">
             Join KulimaChain
           </DialogTitle>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="absolute right-2 top-2"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="h-5 w-5" />
-          </Button>
         </DialogHeader>
         
         <div className="py-6 px-4">
