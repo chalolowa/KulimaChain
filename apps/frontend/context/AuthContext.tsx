@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const web3AuthInstance = new Web3Auth({
           clientId: process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID as string,
-          //chainConfig: chainConfig,
+          chainConfig,
           web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
           uiConfig: {
             appName: "KulimaChain",
@@ -57,11 +57,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             loginMethodsOrder: ["google"],
             defaultLanguage: "en",
             modalZIndex: "2147483647",
+            logoLight: "https://drive.google.com/file/d/1l03HapIEs2jxTbr9hOuKESacg7Ns8Z-g/view?usp=sharing"
           },
         });
 
         await web3AuthInstance.init();
         setWeb3auth(web3AuthInstance);
+
+        // Check if user is already logged in
+      if (web3AuthInstance.connected) {
+        const userInfo = await web3AuthInstance.getUserInfo();
+        const storedUserType = localStorage.getItem("userType") as "farmer" | "investor" | null;
+        if (storedUserType) {
+          setUserType(storedUserType);
+          // Restore user session
+          await restoreSession(web3AuthInstance, storedUserType);
+        }
+      }
       } catch (err) {
         console.error("Web3Auth init error:", err);
         setError("Web3Auth initialization failed.");
@@ -74,6 +86,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       web3auth?.logout();
     };
   }, []);
+
+  // Add session restoration function
+  const restoreSession = async (web3AuthInstance: Web3Auth, type: "farmer" | "investor") => {
+    try {
+      setLoading(true);
+      const privateKey = await web3AuthInstance.provider?.request({
+        method: "eth_private_key"
+      });
+
+      if (privateKey) {
+        const did = await createDID(privateKey as string);
+        const ceramic = await authenticateCeramic(did);
+        setCeramicClient(ceramic);
+
+        const smartAccount = await setupBiconomy(privateKey as string);
+        setSmartAccount(smartAccount);
+
+        const userInfo = await web3AuthInstance.getUserInfo();
+        const accountAddress = await smartAccount.getAccountAddress();
+        setUser({
+          ...userInfo,
+          did: did.id,
+          address: accountAddress,
+        });
+      }
+    } catch (err) {
+      console.error("Session restoration failed:", err);
+      // Clear invalid session
+      localStorage.removeItem("userType");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const createDID = async (privateKey: string): Promise<DID> => {
     let hex = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
@@ -140,7 +185,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const privateKey = await provider.request({ method: "private_key" });
+      const privateKey = await web3auth.provider?.request({method: "eth_private_key"});
+      if (!privateKey) {
+        throw new Error("Failed to get private key");
+      }
 
       const did = await createDID(privateKey as string);
       const ceramic = await authenticateCeramic(did);

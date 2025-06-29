@@ -26,7 +26,7 @@ export default function AdminLayout({
                 Admin User
               </span>
               <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-                <span className="font-medium">AU</span>
+                <span className="font-medium">KC</span>
               </div>
             </div>
           </div>

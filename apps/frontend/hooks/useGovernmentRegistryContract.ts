@@ -166,10 +166,10 @@ export function useGovernmentRegistryContract() {
     if (!contract || !smartAccount) throw new Error('Contract or Smart Account not initialized');
     
     try {
-      // For read operations, we can use the bundler's provider or make direct RPC calls
+      // For read operations, we can make direct RPC calls
       const callData = contract.interface.encodeFunctionData("getAuthority", [address]);
       
-      // Use eth_call through the bundler or a direct RPC call
+      // eth_call through the direct RPC call
       const rpcUrl = "https://api.avax-test.network/ext/bc/C/rpc"; // Avalanche Fuji
       const response = await fetch(rpcUrl, {
         method: 'POST',

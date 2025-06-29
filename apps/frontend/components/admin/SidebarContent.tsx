@@ -6,7 +6,6 @@ export default function SidebarContent() {
     const navItems = [
     { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/admin/authorities", icon: Building2, label: "Authorities" },
-    { href: "/admin/users", icon: User, label: "Users" },
     { href: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 

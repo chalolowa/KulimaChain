@@ -1,3 +1,5 @@
+"use client"
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,10 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useGovernmentRegistryContract } from "@/hooks/useGovernmentRegistryContract";
 import { PlusCircle } from "lucide-react";
 
 export default function AuthoritiesPage() {
-  // Mock data - replace with API calls
+  // Mock data
   const authorities = [
     {
       id: "AUTH-001",
@@ -37,11 +40,13 @@ export default function AuthoritiesPage() {
     },
   ];
 
+  const { addAuthority, updateAuthority, deactivateAuthority} = useGovernmentRegistryContract();
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold">Government Authorities</h2>
-        <Button>
+        <Button onClick={() => addAuthority}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Authority
         </Button>
@@ -90,10 +95,10 @@ export default function AuthoritiesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => updateAuthority}>
                           Edit
                         </Button>
-                        <Button variant="destructive" size="sm">
+                        <Button variant="destructive" size="sm" onClick={() => deactivateAuthority}>
                           Delete
                         </Button>
                       </div>
@@ -102,20 +107,6 @@ export default function AuthoritiesPage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
-
-          {/* Add Authority Form (Would be in a modal in real implementation) */}
-          <div className="mt-6 p-4 border rounded-lg">
-            <h3 className="text-lg font-medium mb-4">Onboard New Authority</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input placeholder="Authority Name" />
-              <Input placeholder="Jurisdiction" />
-              <Input placeholder="Contact Email" type="email" />
-              <Input placeholder="Contact Phone" type="tel" />
-              <div className="sm:col-span-2">
-                <Button>Submit Authority Request</Button>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
