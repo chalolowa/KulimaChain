@@ -6,6 +6,7 @@ import { SelfID, EthereumAuthProvider } from "@self.id/web";
 import WalletConnectProvider from "@walletconnect/web3-provider"
 import { Provider } from "@self.id/react"
 import { SafeEventEmitterProvider } from "@web3auth/base";
+import { useRouter } from "next/navigation";
 
 type AuthContextType = {
   smartAccount: any;
@@ -32,6 +33,7 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const router = useRouter();
   const [smartAccount, setSmartAccount] = useState<BiconomySmartAccountV2 | null>(null);
   const [selfId, setSelfId] = useState<SelfID | null>(null);
   const [userType, setUserType] = useState(null);
@@ -183,6 +185,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserType(null);
     setAuthMethod(null);
     setConnectionStatus('disconnected');
+    router.replace('/');
   };
 
   return (
