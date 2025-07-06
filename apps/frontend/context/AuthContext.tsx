@@ -15,6 +15,7 @@ type AuthContextType = {
   authMethod: any;
   socialLogin: (role: any) => Promise<void>;
   walletConnectLogin: (role: any) => Promise<void>;
+  logout: () => void;
   connectionStatus: any;
 };
 
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   authMethod: null,
   socialLogin: async (_role: any) => { },
   walletConnectLogin: async (_role: any) => { },
+  logout: () => { },
   connectionStatus: undefined
 });
 
@@ -175,6 +177,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const logout = () => {
+    setSmartAccount(null);
+    setSelfId(null);
+    setUserType(null);
+    setAuthMethod(null);
+    setConnectionStatus('disconnected');
+  };
+
   return (
     <AuthContext.Provider value={{
       smartAccount,
@@ -184,6 +194,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       authMethod,
       socialLogin,
       walletConnectLogin,
+      logout,
       connectionStatus
     }}>
       {children}
