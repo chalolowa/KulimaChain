@@ -1,0 +1,13 @@
+{
+  "name": "KulimaChain",
+  "tagline": "Kulima na Blockchain",
+  "description": "The project is a decentralized application that offers crop insurance for farmers during flood/drought, allows the farmers to tokenize their land and sell the shares to whitelisted investors on the platform. The dapp also uses Avalanche Kenya Shilling (pegged 1:1 with Kenya Shilling) stablecoin for payments, protecting farmers and investors from crypto market volatility. The payouts are triggered automatically based on the data fetched using Chainlink Functions, ensuring smooth payment to farmers. Farmers purchase crop insurance and receive payouts in AKS (Avalanche Kenya Shilling) stablecoins.\n\nThe tokenization system is unique as it applies a proxy token system. In this system, the land is tokenized into NFTs which are locked and used to mint ERC-3643 tokens that are tradable and have dynamic token names and symbols. The proxy contract utilizes the ERC-3643 T-REX framework to ensure legal compliance, including KYC/AML.\n\nThe tokenization system also provides endpoints for integration with real-world authorities and governments for verification of land ownership by checking title deed ownership, land size, and other relevant uploaded documents before tokenization—ensuring trust and confidence for investors.\n\nAdditionally, 10% of the land NFT shares are locked to ensure that the land cannot be sold entirely on-chain, preventing corporate land-grabbing. It includes a 'buy-back intent' feature enabling the farmer to regain full ownership of the land. Shared images illustrate the flow of the tokenization process.\n\nThis dapp offers farmers a better and safer insurance alternative, access to investment capital instead of risking their farms through bad loans, and an opportunity to participate in global DeFi markets.\n\nInvestors acquire fractional ownership of land-backed assets with real asset appreciation, asset diversification, and access to impact investments.\n\nOverall, the project mainly targets farmers in developing countries—especially across the African continent—to increase user adoption in the DeFi space and provide opportunities for young farmers. Thus, the prioritization of a mobile-first design for the user interface.",
+  "team": [
+    {
+      "name": "Charles Wangwe",
+      "email": "locha.softwaredev@gmail.com"
+    }
+  ],
+  "demo_url": "https://kulima-chain-frontend.vercel.app/",
+  "technologies": ["Nextjs","Hardhat", "Chainlink", "Avalanche", "Lighthouse", "GraphQL"]
+}

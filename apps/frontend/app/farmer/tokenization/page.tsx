@@ -13,13 +13,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export default function TokenizationPage() {
-  const { user, smartAccount } = useAuth();
+  const { userType, smartAccount } = useAuth();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadStatus, setUploadStatus] = useState<UploadResult>({});
   const [isUploading, setIsUploading] = useState(false);
 
   const handleUpload = async () => {
-    if (!user || !smartAccount || selectedFiles.length === 0) return;
+    if (!userType || !smartAccount || selectedFiles.length === 0) return;
     
     setIsUploading(true);
     
