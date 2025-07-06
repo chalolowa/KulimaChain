@@ -12,15 +12,15 @@ import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const { user, userType } = useAuth();
+  const { userType } = useAuth();
   const router = useRouter();
 
   // Redirect if logged in and userType is set
   useEffect(() => {
-    if (user && userType) {
+    if (userType) {
       router.replace("/redirect");
     }
-  }, [user, userType, router]);
+  }, [userType, router]);
 
   return (
     <div className="relative min-h-screen flex items-center justify-center">
