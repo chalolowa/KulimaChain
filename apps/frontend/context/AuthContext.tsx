@@ -1,250 +1,194 @@
 "use client";
 
-import { useContext, useState, useEffect, ReactNode, createContext, useCallback } from "react";
-import { CHAIN_NAMESPACES, Web3Auth, WEB3AUTH_NETWORK } from "@web3auth/modal";
-import { BiconomyPaymaster, BiconomySmartAccountV2, BiconomySmartAccountV2Config, Bundler, DEFAULT_ENTRYPOINT_ADDRESS, IBundler, IPaymaster } from "@biconomy/account";
-import { CeramicClient } from "@ceramicnetwork/http-client";
-import { getResolver } from "key-did-resolver"
-import { Wallet } from "ethers";
-import { DID } from "dids";
-import { fromString } from "uint8arrays/from-string";
-import { Ed25519Provider } from "key-did-provider-ed25519";
-import { useRouter } from "next/navigation";
+import { useContext, useState, ReactNode, createContext, SetStateAction } from "react";
+import { BiconomyPaymaster, BiconomySmartAccountV2, Bundler, DEFAULT_ECDSA_OWNERSHIP_MODULE, DEFAULT_ENTRYPOINT_ADDRESS, ECDSAOwnershipValidationModule } from "@biconomy/account";
+import { SelfID, EthereumAuthProvider } from "@self.id/web";
+import WalletConnectProvider from "@walletconnect/web3-provider"
+import { Provider } from "@self.id/react"
+import { SafeEventEmitterProvider } from "@web3auth/base";
 
-interface AuthContextType {
-  user: any;
-  userType: 'farmer' | 'investor' | null;
+type AuthContextType = {
+  smartAccount: any;
+  selfId: SelfID | null;
+  userType: any;
   loading: boolean;
-  error: string | null;
-  login: (type: 'farmer' | 'investor') => Promise<void>;
-  logout: () => void;
-  ceramicClient: CeramicClient | null;
-  smartAccount: BiconomySmartAccountV2 | null;
-}
+  authMethod: any;
+  socialLogin: (role: any) => Promise<void>;
+  walletConnectLogin: (role: any) => Promise<void>;
+  connectionStatus: any;
+};
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType>({
+  smartAccount: null,
+  selfId: null,
+  userType: null,
+  loading: false,
+  authMethod: null,
+  socialLogin: async (_role: any) => { },
+  walletConnectLogin: async (_role: any) => { },
+  connectionStatus: undefined
+});
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [userType, setUserType] = useState<"farmer" | "investor" | null>(null);
-  const [ceramicClient, setCeramicClient] = useState<CeramicClient | null>(null);
   const [smartAccount, setSmartAccount] = useState<BiconomySmartAccountV2 | null>(null);
-  const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
+  const [selfId, setSelfId] = useState<SelfID | null>(null);
+  const [userType, setUserType] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [authMethod, setAuthMethod] = useState<null | "social" | "walletconnect">(null);
+  const [connectionStatus, setConnectionStatus] = useState("disconnected")
 
-  useEffect(() => {
-    const initWeb3Auth = async () => {
-      try {
-        const chainConfig = {
-          chainNamespace: CHAIN_NAMESPACES.EIP155,
-          chainId: "0xa869", // Avalanche Fuji
-          rpcTarget: "https://api.avax-test.network/ext/bc/C/rpc",
-          displayName: "Avalanche Fuji",
-          blockExplorer: "https://testnet.snowtrace.io",
-          ticker: "AVAX",
-          tickerName: "Avalanche",
-        };
-
-        const web3AuthInstance = new Web3Auth({
-          clientId: process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID as string,
-          chainConfig,
-          web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
-          uiConfig: {
-            appName: "KulimaChain",
-            theme: "light" as any,
-            loginMethodsOrder: ["google"],
-            defaultLanguage: "en",
-            modalZIndex: "2147483647",
-            logoLight: "https://drive.google.com/file/d/1l03HapIEs2jxTbr9hOuKESacg7Ns8Z-g/view?usp=sharing"
-          },
-        });
-
-        await web3AuthInstance.init();
-        setWeb3auth(web3AuthInstance);
-
-        // Check if user is already logged in
-      if (web3AuthInstance.connected) {
-        const userInfo = await web3AuthInstance.getUserInfo();
-        const storedUserType = localStorage.getItem("userType") as "farmer" | "investor" | null;
-        if (storedUserType) {
-          setUserType(storedUserType);
-          // Restore user session
-          await restoreSession(web3AuthInstance, storedUserType);
-        }
-      }
-      } catch (err) {
-        console.error("Web3Auth init error:", err);
-        setError("Web3Auth initialization failed.");
-      }
-    };
-
-    initWeb3Auth();
-
-    return () => {
-      web3auth?.logout();
-    };
-  }, []);
-
-  // Add session restoration function
-  const restoreSession = async (web3AuthInstance: Web3Auth, type: "farmer" | "investor") => {
+  // Initialize Self.ID
+  const initializeSelfID = async (provider: SafeEventEmitterProvider | WalletConnectProvider, address: string) => {
     try {
-      setLoading(true);
-      const privateKey = await web3AuthInstance.provider?.request({
-        method: "eth_private_key"
+      setConnectionStatus('connecting');
+      const authProvider = new EthereumAuthProvider(provider, address);
+      // Authenticate with Ceramic using the static method
+      const selfId = await SelfID.authenticate({
+        ceramic: "https://ceramic-clay.3boxlabs.com",
+        connectNetwork: 'testnet-clay',
+        authProvider,
       });
-
-      if (privateKey) {
-        const did = await createDID(privateKey as string);
-        const ceramic = await authenticateCeramic(did);
-        setCeramicClient(ceramic);
-
-        const smartAccount = await setupBiconomy(privateKey as string);
-        setSmartAccount(smartAccount);
-
-        const userInfo = await web3AuthInstance.getUserInfo();
-        const accountAddress = await smartAccount.getAccountAddress();
-        setUser({
-          ...userInfo,
-          did: did.id,
-          address: accountAddress,
-        });
-      }
-    } catch (err) {
-      console.error("Session restoration failed:", err);
-      // Clear invalid session
-      localStorage.removeItem("userType");
-    } finally {
-      setLoading(false);
+      setSelfId(selfId);
+      setConnectionStatus('connected');
+      return selfId;
+    } catch (error) {
+      console.error('Self.ID initialization error:', error);
+      setConnectionStatus('failed');
+      throw error;
     }
   };
 
-  const createDID = async (privateKey: string): Promise<DID> => {
-    let hex = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
-    // Pad with leading zeros if needed
-    if (hex.length < 64) {
-      hex = hex.padStart(64, "0");
-    }
-    const seed = fromString(hex, "base16").slice(0, 32);
-    const provider = new Ed25519Provider(seed);
-    const did = new DID({ provider, resolver: getResolver() });
-    await did.authenticate();
-    return did;
-  };
 
-  const authenticateCeramic = async (did: DID) => {
-    const ceramic = new CeramicClient("https://ceramic-clay.3boxlabs.com");
-    ceramic.did = did;
-    await ceramic.did.authenticate();
-    return ceramic;
-  };
-
-  const setupBiconomy = async (
-    privateKey: string
-  ): Promise<BiconomySmartAccountV2> => {
-    const wallet = new Wallet(privateKey);
-
-    const bundler: IBundler = new Bundler({
-      bundlerUrl: `https://bundler.biconomy.io/api/v2/43113/${process.env.NEXT_PUBLIC_BICONOMY_BUNDLER_API_KEY}`,
-      chainId: 43113,
-      entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
-    });
-
-    const paymaster: IPaymaster = new BiconomyPaymaster({
-      paymasterUrl: `https://paymaster.biconomy.io/api/v1/43113/${process.env.NEXT_PUBLIC_BICONOMY_PAYMASTER_API_KEY}`,
-    });
-
-    const config: BiconomySmartAccountV2Config = {
-      signer: wallet,
-      chainId: 43113,
-      bundler,
-      paymaster,
-      entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
-    };
-
-    const smartAccount = await BiconomySmartAccountV2.create(config);
-    return smartAccount;
-  };
-
-  const login = useCallback(async (type: "farmer" | "investor") => {
-    if (!web3auth) {
-      setError("Web3Auth not ready");
-      return;
-    }
-
+  // Initialize Biconomy Smart Account V2
+  const initSmartAccount = async (provider: SafeEventEmitterProvider | WalletConnectProvider, role: SetStateAction<null>) => {
     setLoading(true);
-    setError(null);
-    setUserType(type);
-
     try {
-      const provider = await web3auth.connect();
-      if (!provider) {
-        setError("Failed to connect to provider.");
-        setLoading(false);
-        return;
-      }
-
-      const privateKey = await web3auth.provider?.request({method: "eth_private_key"});
-      if (!privateKey) {
-        throw new Error("Failed to get private key");
-      }
-
-      const did = await createDID(privateKey as string);
-      const ceramic = await authenticateCeramic(did);
-      setCeramicClient(ceramic);
-
-      const smartAccount = await setupBiconomy(privateKey as string);
-      setSmartAccount(smartAccount);
-
-      const userInfo = await web3auth.getUserInfo();
-      const accountAddress = await smartAccount.getAccountAddress();
-      setUser({
-        ...userInfo,
-        did: did.id,
-        address: accountAddress,
+      const chainId = 43113;
+      
+      // 1. Setup Bundler
+      const bundler = new Bundler({
+        bundlerUrl: `https://bundler.biconomy.io/api/v2/43113/${process.env.NEXT_PUBLIC_BICONOMY_BUNDLER_API_KEY}`,
+        chainId: chainId,
+        entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
       });
 
-      localStorage.setItem("userType", type);
-    } catch (err) {
-      console.error("Login failed:", err);
-      const errorMessage = err instanceof Error ? err.message : "Login failed. Try again.";
-      setError(errorMessage);
+      // 2. Setup Paymaster (for AKS gas payments)
+      const paymaster = new BiconomyPaymaster({
+        paymasterUrl: `https://paymaster.biconomy.io/api/v1/43113/${process.env.NEXT_PUBLIC_BICONOMY_PAYMASTER_API_KEY}`
+      });
+
+      // 3. Create Smart Account
+      const biconomySmartAccount = await BiconomySmartAccountV2.create({
+        chainId: chainId,
+        bundler: bundler,
+        paymaster: paymaster,
+        entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
+        defaultValidationModule: await getEcdsaModule(Provider),
+        activeValidationModule: await getEcdsaModule(Provider),
+      });
+
+      // 4. Get user address
+      const address = await biconomySmartAccount.getAccountAddress();
+      
+      // 5. Initialize Self.ID
+      const selfIdInstance = await initializeSelfID(provider, address);
+      
+      // 6. Update state
+      setSmartAccount(biconomySmartAccount);
+      setSelfId(selfIdInstance);
+      setUserType(role);
+      return true;
+    } catch (error) {
+      console.error('Initialization error:', error);
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [web3auth]);
+  };
 
-  const logout = useCallback(async () => {
-    if (web3auth) await web3auth.logout();
-    setUser(null);
-    setUserType(null);
-    setCeramicClient(null);
-    setSmartAccount(null);
-    localStorage.removeItem("userType");
-    router.replace("/");
-  }, [web3auth]);
+  // Helper to get ECDSA module
+  const getEcdsaModule = async (provider: any) => {
+    const web3Provider = Provider(provider);
+    const signer = web3Provider.getSigner();
+    return ECDSAOwnershipValidationModule.create({
+      signer: signer,
+      moduleAddress: DEFAULT_ECDSA_OWNERSHIP_MODULE
+    });
+  };
+
+  const socialLogin = async (role: any) => {
+    setAuthMethod('social');
+
+    if (typeof window === "undefined") return;
+
+    const { default: SocialLogin } = await import("@biconomy/web3-auth");
+
+    try {
+      // Initialize SocialLogin
+      const socialLogin = new SocialLogin();
+      await socialLogin.init({
+        chainId: "0xa869",
+        network: "testnet"
+      });
+      
+      socialLogin.showWallet();
+
+      // Poll for provider to be available
+      const pollProvider = async () => {
+        return new Promise<void>((resolve, reject) => {
+          const interval = setInterval(async () => {
+            if (socialLogin.provider) {
+              clearInterval(interval);
+              await initSmartAccount(socialLogin.provider, role);
+              resolve();
+            }
+          }, 500);
+          // Optional: timeout after 2 minutes
+          setTimeout(() => {
+            clearInterval(interval);
+            reject(new Error("Social login timed out"));
+          }, 120000);
+        });
+      };
+
+      await pollProvider();
+    } catch (error) {
+      console.error('Social login error:', error);
+    }
+  };
+
+  const walletConnectLogin = async (role: any) => {
+    setAuthMethod('walletconnect');
+    try {
+      const provider = new WalletConnectProvider({
+        rpc: {
+          43113: "https://api.avax-test.network/ext/bc/c/rpc",
+        },
+        infuraId: process.env.NEXT_PUBLIC_ALCHEMY_ID,
+        chainId: 43113
+      });
+      
+      await provider.enable();
+      await initSmartAccount(provider, role);
+    } catch (error) {
+      console.error('WalletConnect error:', error);
+    }
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        userType,
-        loading,
-        error,
-        login,
-        logout,
-        ceramicClient,
-        smartAccount,
-      }}
-    >
+    <AuthContext.Provider value={{
+      smartAccount,
+      selfId,
+      userType,
+      loading,
+      authMethod,
+      socialLogin,
+      walletConnectLogin,
+      connectionStatus
+    }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used inside AuthProvider");
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
