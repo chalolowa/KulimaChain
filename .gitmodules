@@ -1,3 +1,0 @@
-[submodule "lib/solidity"]
-	path = lib/solidity
-	url = https://github.com/onchain-id/solidity
